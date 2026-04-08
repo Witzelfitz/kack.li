@@ -17,6 +17,13 @@ const app     = express();
 const PORT    = process.env.PORT || 3000;
 const RSS_URL = 'https://brainfart.podcaster.de/kack-sachgeschichten.rss';
 const DB_FILE = path.join(__dirname, 'episodes.db');
+const PUBLIC_CORS_PATTERNS = [
+  /^\/api\/episodes$/,
+  /^\/api\/episodes\/\d+$/,
+  /^\/api\/guests$/,
+  /^\/api\/topics$/,
+  /^\/api\/status$/,
+];
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || process.env.OPEN_API_KEY;
 const openai = OPENAI_API_KEY ? new OpenAI({ apiKey: OPENAI_API_KEY }) : null;
@@ -25,9 +32,16 @@ const openai = OPENAI_API_KEY ? new OpenAI({ apiKey: OPENAI_API_KEY }) : null;
 app.use(express.json());
 
 app.use((req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  const allowPublicCors =
+    !req.headers.authorization &&
+    ['GET', 'OPTIONS'].includes(req.method) &&
+    PUBLIC_CORS_PATTERNS.some((pattern) => pattern.test(req.path));
+
+  if (allowPublicCors) {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  }
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
 });
@@ -115,6 +129,26 @@ function tryJson(str) {
   try { const v = JSON.parse(str); return Array.isArray(v) ? v : []; } catch { return []; }
 }
 
+function sanitizeHttpUrl(value, base = null) {
+  if (!value) return '';
+  try {
+    const url = base ? new URL(String(value).trim(), base) : new URL(String(value).trim());
+    return ['http:', 'https:'].includes(url.protocol) ? url.toString() : '';
+  } catch {
+    return '';
+  }
+}
+
+function serializeEpisode(ep) {
+  if (!ep) return null;
+  return {
+    ...ep,
+    audio_url: sanitizeHttpUrl(ep.audio_url, RSS_URL),
+    image_url: sanitizeHttpUrl(ep.image_url, RSS_URL),
+    link: sanitizeHttpUrl(ep.link, RSS_URL),
+  };
+}
+
 // ── Logging ───────────────────────────────────────────────────────────────────
 function log(event, message, meta = null, level = 'info') {
   const ts  = new Date().toISOString();
@@ -160,10 +194,10 @@ async function syncFeed() {
        item.title || '', pubDate, item['itunes:duration'] || '',
        stripHtml(item.description || ''),
        stripHtml(item['itunes:summary'] || item.description || ''),
-       item.enclosure?.$.url || '',
+       sanitizeHttpUrl(item.enclosure?.$.url, RSS_URL),
        parseInt(item['itunes:episode']) || null,
-       item['itunes:image']?.$.href || channel['itunes:image']?.$.href || '',
-       item.link || '', isNaN(pubTs) ? 0 : pubTs]);
+       sanitizeHttpUrl(item['itunes:image']?.$.href || channel['itunes:image']?.$.href, RSS_URL),
+       sanitizeHttpUrl(item.link, RSS_URL), isNaN(pubTs) ? 0 : pubTs]);
     if (!before) newCount++;
   }
   const now = new Date().toISOString();
@@ -279,12 +313,12 @@ app.get('/api/episodes', (req, res) => {
 
   const total    = dbGet(`SELECT COUNT(*) as c FROM episodes WHERE ${where}`, params)?.c || 0;
   const episodes = dbAll(`SELECT * FROM episodes WHERE ${where} ORDER BY pub_ts ASC LIMIT ? OFFSET ?`,
-    [...params, lim, off]);
+    [...params, lim, off]).map(serializeEpisode);
   res.json({ total, limit: lim, offset: off, episodes });
 });
 
 app.get('/api/episodes/:id', (req, res) => {
-  const ep = dbGet('SELECT * FROM episodes WHERE id = ?', [req.params.id]);
+  const ep = serializeEpisode(dbGet('SELECT * FROM episodes WHERE id = ?', [req.params.id]));
   if (!ep) return res.status(404).json({ error: 'Nicht gefunden' });
   res.json(ep);
 });

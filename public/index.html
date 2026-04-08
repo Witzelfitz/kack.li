@@ -40,10 +40,10 @@
           autocomplete="off"
           spellcheck="false"
         >
-        <button class="clear-btn" id="clearBtn" onclick="clearSearch()">✕</button>
+        <button class="clear-btn" id="clearBtn" type="button">✕</button>
       </div>
-      <button class="btn-filter" id="filterToggle" onclick="toggleFilterPanel()">⊞ Filter</button>
-      <button class="btn-filter-active" id="filterChip" onclick="clearFilters()" style="display:none"></button>
+      <button class="btn-filter" id="filterToggle" type="button">⊞ Filter</button>
+      <button class="btn-filter-active" id="filterChip" type="button" style="display:none"></button>
       <div class="count-label" id="countLabel">— Episoden</div>
     </div>
 
@@ -69,9 +69,9 @@
   </main>
 
   <!-- Episode Detail Modal -->
-  <div class="modal-backdrop" id="modalBackdrop" onclick="closeModal()">
-    <div class="modal" id="modal" onclick="event.stopPropagation()">
-      <button class="modal-close" onclick="closeModal()">✕</button>
+  <div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal" id="modal">
+      <button class="modal-close" type="button">✕</button>
       <div class="modal-body" id="modalBody"></div>
     </div>
   </div>

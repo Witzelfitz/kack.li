@@ -13,6 +13,8 @@ document.addEventListener('DOMContentLoaded', () => {
   loadFilters();
 
   const input = document.getElementById('searchInput');
+  const modal = document.getElementById('modal');
+
   input.addEventListener('input', () => {
     const q = input.value.trim();
     document.getElementById('clearBtn').classList.toggle('visible', q.length > 0);
@@ -23,7 +25,42 @@ document.addEventListener('DOMContentLoaded', () => {
       loadEpisodes();
     }, 320);
   });
+
+  document.getElementById('clearBtn').addEventListener('click', clearSearch);
+  document.getElementById('filterToggle').addEventListener('click', toggleFilterPanel);
+  document.getElementById('filterChip').addEventListener('click', clearFilters);
+  document.getElementById('filterBar').addEventListener('click', handleSetFilterClick);
+  document.getElementById('episodeGrid').addEventListener('click', handleEpisodeCardClick);
+  document.getElementById('pagination').addEventListener('click', handlePaginationClick);
+  document.getElementById('modalBackdrop').addEventListener('click', closeModal);
+  document.getElementById('modalBody').addEventListener('click', handleSetFilterClick);
+  document.querySelector('.modal-close').addEventListener('click', closeModal);
+  modal.addEventListener('click', (event) => event.stopPropagation());
 });
+
+function handleSetFilterClick(event) {
+  const button = event.target.closest('button[data-action="set-filter"]');
+  if (!button) return;
+  const type = button.dataset.type;
+  if (type !== 'guest' && type !== 'topic') return;
+  event.preventDefault();
+  if (button.dataset.closeModal === '1') closeModal();
+  setFilter(type, button.dataset.value || '');
+}
+
+function handleEpisodeCardClick(event) {
+  const card = event.target.closest('.episode-card[data-episode-id]');
+  if (!card) return;
+  const id = Number.parseInt(card.dataset.episodeId, 10);
+  if (Number.isInteger(id) && id > 0) openModal(id);
+}
+
+function handlePaginationClick(event) {
+  const button = event.target.closest('.page-btn[data-page]');
+  if (!button || button.disabled) return;
+  const page = Number.parseInt(button.dataset.page, 10);
+  if (Number.isInteger(page) && page >= 0) goPage(page);
+}
 
 // ── API ───────────────────────────────────────────────────────────────────────
 async function api(path) {
@@ -58,6 +95,7 @@ async function loadFilters() {
     document.getElementById('filterToggle').style.display = '';
     renderFilterTags('guestTags', guests.slice(0, 30), 'guest');
     renderFilterTags('topicTags', topics.slice(0, 40), 'topic');
+    updateFilterUI();
   } catch {}
 }
 
@@ -72,13 +110,13 @@ function toggleFilterPanel() {
 function renderFilterTags(containerId, items, type) {
   const el = document.getElementById(containerId);
   el.innerHTML = items.map(item =>
-    `<button class="filter-tag" data-type="${type}" data-value="${escAttr(item.name)}"
-      onclick="setFilter('${type}','${escAttr(item.name)}')"
-    >${escHtml(item.name)} <span class="filter-count">${item.count}</span></button>`
+    `<button class="filter-tag" data-action="set-filter" data-type="${escAttr(type)}" data-value="${escAttr(item.name)}">
+      ${escHtml(item.name)} <span class="filter-count">${Number(item.count) || 0}</span></button>`
   ).join('');
 }
 
 function setFilter(type, value) {
+  if (type !== 'guest' && type !== 'topic') return;
   if (type === 'guest') {
     currentGuest = currentGuest === value ? '' : value;
     currentTopic = '';
@@ -154,8 +192,9 @@ function renderEpisodes(episodes, total) {
 
   grid.innerHTML = episodes.map(ep => {
     const guests = tryJson(ep.guests_json).slice(0, 2);
+    const episodeId = Number.parseInt(ep.id, 10) || 0;
     return `
-    <div class="episode-card" onclick="openModal(${ep.id})">
+    <div class="episode-card" data-episode-id="${episodeId}">
       <div class="card-meta">
         ${ep.episode_num ? `<span class="card-num">#${String(ep.episode_num).padStart(3,'0')}</span>` : ''}
         <span class="card-date">${formatDate(ep.pub_date)}</span>
@@ -176,7 +215,7 @@ function renderPagination(total) {
   if (pages <= 1) { pg.innerHTML = ''; return; }
 
   const makeBtn = (label, page, disabled = false, active = false) =>
-    `<button class="page-btn${active ? ' active' : ''}" ${disabled ? 'disabled' : ''} onclick="goPage(${page})">${label}</button>`;
+    `<button class="page-btn${active ? ' active' : ''}" ${disabled ? 'disabled' : ''} data-page="${page}">${label}</button>`;
 
   let html = makeBtn('← ZURÜCK', currentPage - 1, currentPage === 0);
   const start = Math.max(0, currentPage - 3);
@@ -190,7 +229,7 @@ function renderPagination(total) {
 }
 
 function goPage(page) {
-  currentPage = page;
+  currentPage = Math.max(0, page);
   loadEpisodes();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -206,6 +245,8 @@ async function openModal(id) {
   try {
     const ep   = await api(`/api/episodes/${id}`);
     const desc = (ep.description || ep.summary || '').slice(0, 2000);
+    const spotifyUrl = `https://open.spotify.com/search/${encodeURIComponent((ep.title || '') + ' Kack Sachgeschichten')}/episodes`;
+    const websiteUrl = sanitizeHttpUrl(ep.link);
 
     body.innerHTML = `
       ${ep.episode_num ? `<div class="modal-num">Episode #${String(ep.episode_num).padStart(3,'0')}</div>` : ''}
@@ -218,8 +259,8 @@ async function openModal(id) {
       ${desc ? `<div class="modal-desc">${escHtml(desc)}${(ep.description || '').length > 2000 ? '\n\n[…]' : ''}</div>` : ''}
       ${renderParsedData(ep)}
       <div class="modal-actions">
-        <a class="btn-spotify" href="https://open.spotify.com/search/${encodeURIComponent((ep.title || '') + ' Kack Sachgeschichten')}/episodes" target="_blank" rel="noopener">▶ AUF SPOTIFY ÖFFNEN</a>
-        ${ep.link ? `<a class="btn-link" href="${ep.link}" target="_blank" rel="noopener">↗ WEBSEITE</a>` : ''}
+        <a class="btn-spotify" href="${escAttr(spotifyUrl)}" target="_blank" rel="noopener">▶ AUF SPOTIFY ÖFFNEN</a>
+        ${websiteUrl ? `<a class="btn-link" href="${escAttr(websiteUrl)}" target="_blank" rel="noopener">↗ WEBSEITE</a>` : ''}
       </div>
     `;
   } catch (err) {
@@ -239,7 +280,7 @@ function renderParsedData(ep) {
     html += `<div class="parsed-section">
       <div class="parsed-label">GÄSTE</div>
       <div class="parsed-tags">${guests.map(g =>
-        `<button class="tag tag-guest" onclick="closeModal();setFilter('guest','${escAttr(g)}')">${escHtml(g)}</button>`
+        `<button class="tag tag-guest" data-action="set-filter" data-close-modal="1" data-type="guest" data-value="${escAttr(g)}">${escHtml(g)}</button>`
       ).join('')}</div>
     </div>`;
   }
@@ -248,7 +289,7 @@ function renderParsedData(ep) {
     html += `<div class="parsed-section">
       <div class="parsed-label">THEMEN</div>
       <div class="parsed-tags">${topics.map(t =>
-        `<button class="tag tag-topic" onclick="closeModal();setFilter('topic','${escAttr(t)}')">${escHtml(t)}</button>`
+        `<button class="tag tag-topic" data-action="set-filter" data-close-modal="1" data-type="topic" data-value="${escAttr(t)}">${escHtml(t)}</button>`
       ).join('')}</div>
     </div>`;
   }
@@ -270,7 +311,15 @@ function closeModal() {
   document.body.style.overflow = '';
 }
 
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+document.addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape') return;
+  if (filterPanelOpen) {
+    filterPanelOpen = false;
+    document.getElementById('filterBar').style.display = 'none';
+    document.getElementById('filterToggle').classList.remove('open');
+  }
+  closeModal();
+});
 
 // ── Search helpers ────────────────────────────────────────────────────────────
 function clearSearch() {
@@ -320,5 +369,20 @@ function escHtml(str) {
 }
 
 function escAttr(str) {
-  return String(str).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+  return String(str)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+
+function sanitizeHttpUrl(value) {
+  if (!value) return '';
+  try {
+    const url = new URL(String(value));
+    return ['http:', 'https:'].includes(url.protocol) ? url.toString() : '';
+  } catch {
+    return '';
+  }
 }
