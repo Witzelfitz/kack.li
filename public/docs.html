@@ -6,40 +6,87 @@
   <title>API – kack.li</title>
   <link rel="stylesheet" href="css/style.css">
   <style>
-    .static-page   { max-width: 860px; margin: 0 auto; padding: 48px 24px; }
-    .static-page h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
-    .static-page .subtitle { font-size: 14px; color: var(--text3); margin-bottom: 48px; }
-    .back-link { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text3); text-decoration: none; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 40px; transition: color 0.15s; }
-    .back-link:hover { color: var(--text2); }
+    /* ── Layout ── */
+    .docs-page { max-width: 900px; margin: 0 auto; padding: 40px 24px 80px; }
+    .docs-title { font-size: 26px; font-weight: 700; margin-bottom: 6px; }
+    .docs-subtitle { font-size: 14px; color: var(--text3); margin-bottom: 32px; }
 
-    .endpoint-group { margin-bottom: 48px; }
-    .endpoint-group-title { font-size: 11px; font-family: var(--font-mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--text3); border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 20px; }
+    .base-url-row { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; flex-wrap: wrap; }
+    .base-url-badge { font-family: var(--font-mono); font-size: 13px; color: var(--text); background: var(--bg2); border: 1px solid var(--border2); padding: 7px 14px; }
+    .info-pill { font-family: var(--font-mono); font-size: 10px; color: var(--text3); border: 1px solid var(--border); padding: 3px 10px; letter-spacing: 0.06em; }
 
-    .endpoint { background: var(--bg2); border: 1px solid var(--border); margin-bottom: 12px; }
-    .endpoint-header { display: flex; align-items: center; gap: 12px; padding: 14px 18px; }
-    .method { font-family: var(--font-mono); font-size: 11px; font-weight: 700; padding: 3px 8px; letter-spacing: 0.06em; min-width: 46px; text-align: center; }
-    .method.get  { background: rgba(34,197,94,0.15); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
-    .method.post { background: rgba(233,0,20,0.12); color: var(--accent); border: 1px solid rgba(233,0,20,0.3); }
-    .endpoint-path { font-family: var(--font-mono); font-size: 13px; color: var(--text); }
-    .endpoint-badge { margin-left: auto; font-size: 10px; font-family: var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text3); border: 1px solid var(--border2); padding: 2px 8px; }
-    .endpoint-badge.admin { color: var(--accent); border-color: rgba(233,0,20,0.4); }
+    /* ── Groups ── */
+    .ep-group { margin-bottom: 40px; }
+    .ep-group-title { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text3); padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
 
-    .endpoint-body { padding: 0 18px 16px; border-top: 1px solid var(--border); }
-    .endpoint-desc { font-size: 13px; color: var(--text2); line-height: 1.65; padding: 12px 0 10px; }
+    /* ── Endpoint card ── */
+    .ep { background: var(--bg2); border: 1px solid var(--border); margin-bottom: 10px; }
+    .ep-head { display: flex; align-items: center; gap: 12px; padding: 13px 16px; cursor: pointer; user-select: none; }
+    .ep-head:hover { background: var(--bg3); }
+    .method { font-family: var(--font-mono); font-size: 10px; font-weight: 700; padding: 3px 8px; letter-spacing: 0.06em; min-width: 42px; text-align: center; flex-shrink: 0; }
+    .method.get  { background: rgba(34,197,94,0.12); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
+    .method.post { background: rgba(233,0,20,0.10); color: var(--accent); border: 1px solid rgba(233,0,20,0.3); }
+    .ep-path { font-family: var(--font-mono); font-size: 13px; color: var(--text); flex: 1; }
+    .ep-summary { font-size: 12px; color: var(--text3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px; }
+    .badge { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em; color: var(--text3); border: 1px solid var(--border2); padding: 2px 8px; flex-shrink: 0; }
+    .badge.admin { color: var(--accent); border-color: rgba(233,0,20,0.4); }
+    .chevron { color: var(--text3); font-size: 11px; transition: transform 0.2s; flex-shrink: 0; }
+    .ep.open .chevron { transform: rotate(90deg); }
 
-    .params { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    /* ── Endpoint body ── */
+    .ep-body { display: none; border-top: 1px solid var(--border); padding: 16px 18px; }
+    .ep.open .ep-body { display: block; }
+    .ep-desc { font-size: 13px; color: var(--text2); line-height: 1.65; margin-bottom: 16px; }
+
+    /* ── Params table ── */
+    .params { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
     .params th { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text3); text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border); }
-    .params td { font-size: 12px; color: var(--text2); padding: 7px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
-    .params td:first-child { font-family: var(--font-mono); color: var(--text); }
-    .params td .opt { font-size: 10px; color: var(--text3); margin-left: 4px; }
+    .params td { font-size: 12px; color: var(--text2); padding: 6px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
     .params tr:last-child td { border-bottom: none; }
+    .params td:first-child { font-family: var(--font-mono); color: var(--text); white-space: nowrap; }
+    .opt { font-size: 10px; color: var(--text3); margin-left: 4px; }
+    .param-input { background: var(--bg); border: 1px solid var(--border2); color: var(--text); font-family: var(--font-mono); font-size: 12px; padding: 4px 8px; width: 100%; max-width: 200px; outline: none; }
+    .param-input:focus { border-color: var(--accent); }
 
-    .code-block { background: var(--bg); border: 1px solid var(--border); padding: 14px 16px; margin-top: 12px; font-family: var(--font-mono); font-size: 12px; color: var(--text2); line-height: 1.7; overflow-x: auto; white-space: pre; }
+    /* ── Try it ── */
+    .try-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+    .try-url { font-family: var(--font-mono); font-size: 11px; color: var(--text2); background: var(--bg); border: 1px solid var(--border); padding: 7px 12px; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .btn-copy { background: transparent; border: 1px solid var(--border2); color: var(--text3); font-family: var(--font); font-size: 11px; padding: 6px 12px; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+    .btn-copy:hover { border-color: var(--text2); color: var(--text2); }
+    .btn-copy.copied { border-color: #22c55e; color: #22c55e; }
+    .btn-run { background: var(--accent); border: none; color: #fff; font-family: var(--font); font-size: 11px; font-weight: 700; padding: 7px 16px; cursor: pointer; transition: opacity 0.15s; white-space: nowrap; letter-spacing: 0.04em; }
+    .btn-run:hover { opacity: 0.85; }
+    .btn-run:disabled { opacity: 0.4; cursor: default; }
 
-    .auth-box { background: rgba(233,0,20,0.07); border: 1px solid rgba(233,0,20,0.25); padding: 14px 18px; margin-bottom: 32px; font-size: 13px; color: var(--text2); line-height: 1.65; }
-    .auth-box code { font-family: var(--font-mono); color: var(--text); background: var(--bg3); padding: 1px 6px; }
+    /* ── Response ── */
+    .response-panel { background: var(--bg); border: 1px solid var(--border); }
+    .response-meta { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-bottom: 1px solid var(--border); font-family: var(--font-mono); font-size: 11px; }
+    .status-ok    { color: #22c55e; font-weight: 700; }
+    .status-err   { color: var(--accent); font-weight: 700; }
+    .status-pend  { color: var(--text3); }
+    .res-time     { color: var(--text3); }
+    .res-size     { color: var(--text3); margin-left: auto; }
+    .response-body { padding: 12px 14px; font-family: var(--font-mono); font-size: 12px; line-height: 1.65; overflow-x: auto; max-height: 400px; overflow-y: auto; white-space: pre; }
+    .response-body.empty { color: var(--text3); font-style: italic; white-space: normal; padding: 20px; text-align: center; }
 
-    .base-url { font-family: var(--font-mono); font-size: 14px; color: var(--text); background: var(--bg2); border: 1px solid var(--border); padding: 10px 16px; display: inline-block; margin-bottom: 32px; }
+    /* JSON highlighting */
+    .jk { color: #7dd3fc; }   /* key */
+    .js { color: #86efac; }   /* string value */
+    .jn { color: #fbbf24; }   /* number */
+    .jb { color: #c084fc; }   /* bool */
+    .jx { color: var(--text3); } /* null */
+
+    /* ── Admin token box ── */
+    .token-box { background: rgba(233,0,20,0.06); border: 1px solid rgba(233,0,20,0.2); padding: 14px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .token-box label { font-family: var(--font-mono); font-size: 11px; color: var(--text3); letter-spacing: 0.06em; white-space: nowrap; }
+    .token-input { background: var(--bg); border: 1px solid var(--border2); color: var(--text); font-family: var(--font-mono); font-size: 12px; padding: 6px 10px; flex: 1; min-width: 200px; outline: none; }
+    .token-input:focus { border-color: var(--accent); }
+    .token-hint { font-size: 11px; color: var(--text3); width: 100%; }
+
+    @media (max-width: 600px) {
+      .ep-summary { display: none; }
+      .docs-page { padding: 24px 16px 60px; }
+    }
   </style>
 </head>
 <body>
@@ -60,162 +107,235 @@
   </header>
 
   <main>
-    <div class="static-page">
-      <a class="back-link" href="/">← Zurück</a>
-      <h1>API-Dokumentation</h1>
-      <p class="subtitle">Öffentliche REST-API für Episodendaten von Kack &amp; Sachgeschichten.</p>
+    <div class="docs-page">
+      <h1 class="docs-title">API-Dokumentation</h1>
+      <p class="docs-subtitle">Öffentliche REST-API für Episodendaten von Kack &amp; Sachgeschichten.</p>
 
-      <div class="base-url" id="baseUrl">https://kack.li</div>
-
-      <div class="auth-box">
-        <strong>Authentifizierung:</strong> GET-Endpunkte sind öffentlich zugänglich (100 Anfragen / 15 Minuten pro IP).
-        Admin-Endpunkte (POST) erfordern einen Bearer-Token im <code>Authorization</code>-Header:
-        <code>Authorization: Bearer &lt;ADMIN_TOKEN&gt;</code>
+      <div class="base-url-row">
+        <span class="base-url-badge" id="baseUrl">https://kack.li</span>
+        <span class="info-pill">JSON</span>
+        <span class="info-pill">100 REQ / 15 MIN</span>
+        <span class="info-pill">CORS ENABLED</span>
       </div>
 
       <!-- PUBLIC -->
-      <div class="endpoint-group">
-        <div class="endpoint-group-title">Öffentliche Endpunkte</div>
+      <div class="ep-group">
+        <div class="ep-group-title">Öffentliche Endpunkte</div>
 
-        <div class="endpoint">
-          <div class="endpoint-header">
+        <!-- /api/status -->
+        <div class="ep open" id="ep-status">
+          <div class="ep-head" data-toggle-ep="ep-status">
             <span class="method get">GET</span>
-            <span class="endpoint-path">/api/episodes</span>
-            <span class="endpoint-badge">public</span>
+            <span class="ep-path">/api/status</span>
+            <span class="ep-summary">Systemstatus &amp; Statistiken</span>
+            <span class="badge">public</span>
+            <span class="chevron">▶</span>
           </div>
-          <div class="endpoint-body">
-            <div class="endpoint-desc">Gibt eine paginierte Liste aller Episoden zurück. Unterstützt Volltextsuche sowie Filterung nach Gast oder Thema.</div>
+          <div class="ep-body">
+            <div class="ep-desc">Gibt den aktuellen Status der Datenbank zurück: Episodenanzahl, Parse-Stand, letzter Sync.</div>
+            <div class="try-bar">
+              <span class="try-url" id="url-ep-status"></span>
+              <button class="btn-copy" data-copy-el="url-ep-status">📋 Kopieren</button>
+              <button class="btn-run" data-run-ep="ep-status">▶ Ausführen</button>
+            </div>
+            <div class="response-panel">
+              <div class="response-meta" id="meta-ep-status"><span class="status-pend">— bereit</span></div>
+              <div class="response-body empty" id="res-ep-status">Klicke „Ausführen" um die API live abzufragen.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- /api/episodes -->
+        <div class="ep" id="ep-episodes">
+          <div class="ep-head" data-toggle-ep="ep-episodes">
+            <span class="method get">GET</span>
+            <span class="ep-path">/api/episodes</span>
+            <span class="ep-summary">Episodenliste mit Suche &amp; Filter</span>
+            <span class="badge">public</span>
+            <span class="chevron">▶</span>
+          </div>
+          <div class="ep-body">
+            <div class="ep-desc">Paginierte Episodenliste. Unterstützt Volltextsuche sowie Filter nach Gast und Thema.</div>
             <table class="params">
-              <tr><th>Parameter</th><th>Typ</th><th>Beschreibung</th></tr>
-              <tr><td>q <span class="opt">optional</span></td><td>string</td><td>Volltextsuche in Titel und Beschreibung</td></tr>
-              <tr><td>guest <span class="opt">optional</span></td><td>string</td><td>Filter nach Gastname</td></tr>
-              <tr><td>topic <span class="opt">optional</span></td><td>string</td><td>Filter nach Thema</td></tr>
-              <tr><td>limit <span class="opt">optional</span></td><td>integer</td><td>Anzahl Ergebnisse (Standard: 24, max: 100)</td></tr>
-              <tr><td>offset <span class="opt">optional</span></td><td>integer</td><td>Offset für Paginierung (Standard: 0)</td></tr>
+              <tr><th>Parameter</th><th>Typ</th><th>Beschreibung</th><th>Wert</th></tr>
+              <tr><td>q <span class="opt">optional</span></td><td>string</td><td>Volltextsuche in Titel &amp; Beschreibung</td><td><input class="param-input" data-ep="ep-episodes" data-param="q" placeholder="z.B. Godzilla"></td></tr>
+              <tr><td>guest <span class="opt">optional</span></td><td>string</td><td>Filter nach Gastname</td><td><input class="param-input" data-ep="ep-episodes" data-param="guest" placeholder="z.B. Dag"></td></tr>
+              <tr><td>topic <span class="opt">optional</span></td><td>string</td><td>Filter nach Thema</td><td><input class="param-input" data-ep="ep-episodes" data-param="topic" placeholder="z.B. Gaming"></td></tr>
+              <tr><td>limit <span class="opt">optional</span></td><td>integer</td><td>Anzahl Ergebnisse (max. 100)</td><td><input class="param-input" data-ep="ep-episodes" data-param="limit" placeholder="24" value="5"></td></tr>
+              <tr><td>offset <span class="opt">optional</span></td><td>integer</td><td>Offset für Paginierung</td><td><input class="param-input" data-ep="ep-episodes" data-param="offset" placeholder="0"></td></tr>
             </table>
-            <div class="code-block">{
-  "total": 392,
-  "limit": 24,
-  "offset": 0,
-  "episodes": [
-    {
-      "id": 383,
-      "title": "#008: Independence Day 2 – Die Kamikaze-Scheibe",
-      "film_title": "Independence Day: Wiederkehr",
-      "pub_date": "Mon, 01 Aug 2016 10:11:45 +0200",
-      "duration": "1:23:45",
-      "episode_num": 8,
-      "guests_json": "[\"Max Mustermann\"]",
-      "topics_json": "[\"Science-Fiction\", \"Blockbuster\", \"Weltuntergang\"]",
-      "chapters_json": "[{\"time\":\"00:05:00\",\"title\":\"Intro\"}]",
-      "parsed_at": "2026-04-08T10:00:00.000Z",
-      ...
-    }
-  ]
-}</div>
+            <div class="try-bar">
+              <span class="try-url" id="url-ep-episodes"></span>
+              <button class="btn-copy" data-copy-el="url-ep-episodes">📋 Kopieren</button>
+              <button class="btn-run" data-run-ep="ep-episodes">▶ Ausführen</button>
+            </div>
+            <div class="response-panel">
+              <div class="response-meta" id="meta-ep-episodes"><span class="status-pend">— bereit</span></div>
+              <div class="response-body empty" id="res-ep-episodes">Klicke „Ausführen" um die API live abzufragen.</div>
+            </div>
           </div>
         </div>
 
-        <div class="endpoint">
-          <div class="endpoint-header">
+        <!-- /api/episodes/:id -->
+        <div class="ep" id="ep-episode-id">
+          <div class="ep-head" data-toggle-ep="ep-episode-id">
             <span class="method get">GET</span>
-            <span class="endpoint-path">/api/episodes/:id</span>
-            <span class="endpoint-badge">public</span>
+            <span class="ep-path">/api/episodes/:id</span>
+            <span class="ep-summary">Einzelne Episode</span>
+            <span class="badge">public</span>
+            <span class="chevron">▶</span>
           </div>
-          <div class="endpoint-body">
-            <div class="endpoint-desc">Gibt eine einzelne Episode mit allen Feldern zurück.</div>
+          <div class="ep-body">
+            <div class="ep-desc">Gibt eine einzelne Episode mit allen Feldern zurück (inkl. Kapitel, Gäste, Themen, Film-Titel).</div>
+            <table class="params">
+              <tr><th>Parameter</th><th>Typ</th><th>Beschreibung</th><th>Wert</th></tr>
+              <tr><td>:id <span class="opt">required</span></td><td>integer</td><td>Episoden-ID</td><td><input class="param-input" data-ep="ep-episode-id" data-param=":id" placeholder="z.B. 88" value="88"></td></tr>
+            </table>
+            <div class="try-bar">
+              <span class="try-url" id="url-ep-episode-id"></span>
+              <button class="btn-copy" data-copy-el="url-ep-episode-id">📋 Kopieren</button>
+              <button class="btn-run" data-run-ep="ep-episode-id">▶ Ausführen</button>
+            </div>
+            <div class="response-panel">
+              <div class="response-meta" id="meta-ep-episode-id"><span class="status-pend">— bereit</span></div>
+              <div class="response-body empty" id="res-ep-episode-id">Klicke „Ausführen" um die API live abzufragen.</div>
+            </div>
           </div>
         </div>
 
-        <div class="endpoint">
-          <div class="endpoint-header">
+        <!-- /api/guests -->
+        <div class="ep" id="ep-guests">
+          <div class="ep-head" data-toggle-ep="ep-guests">
             <span class="method get">GET</span>
-            <span class="endpoint-path">/api/guests</span>
-            <span class="endpoint-badge">public</span>
+            <span class="ep-path">/api/guests</span>
+            <span class="ep-summary">Alle Gäste mit Auftrittsanzahl</span>
+            <span class="badge">public</span>
+            <span class="chevron">▶</span>
           </div>
-          <div class="endpoint-body">
-            <div class="endpoint-desc">Liste aller Gäste, sortiert nach Anzahl der Auftritte.</div>
-            <div class="code-block">[
-  { "name": "Dag von SDP",          "count": 12 },
-  { "name": "Alea (Saltatio Mortis)", "count": 3  },
-  ...
-]</div>
+          <div class="ep-body">
+            <div class="ep-desc">Liste aller Gäste, sortiert nach Anzahl der Auftritte.</div>
+            <div class="try-bar">
+              <span class="try-url" id="url-ep-guests"></span>
+              <button class="btn-copy" data-copy-el="url-ep-guests">📋 Kopieren</button>
+              <button class="btn-run" data-run-ep="ep-guests">▶ Ausführen</button>
+            </div>
+            <div class="response-panel">
+              <div class="response-meta" id="meta-ep-guests"><span class="status-pend">— bereit</span></div>
+              <div class="response-body empty" id="res-ep-guests">Klicke „Ausführen" um die API live abzufragen.</div>
+            </div>
           </div>
         </div>
 
-        <div class="endpoint">
-          <div class="endpoint-header">
+        <!-- /api/topics -->
+        <div class="ep" id="ep-topics">
+          <div class="ep-head" data-toggle-ep="ep-topics">
             <span class="method get">GET</span>
-            <span class="endpoint-path">/api/topics</span>
-            <span class="endpoint-badge">public</span>
+            <span class="ep-path">/api/topics</span>
+            <span class="ep-summary">Alle Themen mit Häufigkeit</span>
+            <span class="badge">public</span>
+            <span class="chevron">▶</span>
           </div>
-          <div class="endpoint-body">
-            <div class="endpoint-desc">Liste aller Themen, sortiert nach Häufigkeit.</div>
-            <div class="code-block">[
-  { "name": "Science-Fiction", "count": 47 },
-  { "name": "Gaming",          "count": 38 },
-  ...
-]</div>
-          </div>
-        </div>
-
-        <div class="endpoint">
-          <div class="endpoint-header">
-            <span class="method get">GET</span>
-            <span class="endpoint-path">/api/status</span>
-            <span class="endpoint-badge">public</span>
-          </div>
-          <div class="endpoint-body">
-            <div class="endpoint-desc">Gibt den aktuellen Status der Datenbank zurück.</div>
-            <div class="code-block">{
-  "episodes": 392,
-  "parsed": 392,
-  "last_sync": "2026-04-08T09:00:00.000Z",
-  "openai": true
-}</div>
+          <div class="ep-body">
+            <div class="ep-desc">Liste aller Themen, sortiert nach Häufigkeit über alle Episoden.</div>
+            <div class="try-bar">
+              <span class="try-url" id="url-ep-topics"></span>
+              <button class="btn-copy" data-copy-el="url-ep-topics">📋 Kopieren</button>
+              <button class="btn-run" data-run-ep="ep-topics">▶ Ausführen</button>
+            </div>
+            <div class="response-panel">
+              <div class="response-meta" id="meta-ep-topics"><span class="status-pend">— bereit</span></div>
+              <div class="response-body empty" id="res-ep-topics">Klicke „Ausführen" um die API live abzufragen.</div>
+            </div>
           </div>
         </div>
       </div>
 
       <!-- ADMIN -->
-      <div class="endpoint-group">
-        <div class="endpoint-group-title">Admin-Endpunkte (Bearer-Token erforderlich)</div>
+      <div class="ep-group">
+        <div class="ep-group-title">Admin-Endpunkte (Bearer-Token erforderlich)</div>
 
-        <div class="endpoint">
-          <div class="endpoint-header">
-            <span class="method post">POST</span>
-            <span class="endpoint-path">/api/sync</span>
-            <span class="endpoint-badge admin">admin</span>
-          </div>
-          <div class="endpoint-body">
-            <div class="endpoint-desc">Synchronisiert den RSS-Feed und fügt neue Episoden zur Datenbank hinzu.</div>
-            <div class="code-block">{ "ok": true, "count": 392, "new": 2, "synced_at": "2026-04-08T09:00:00.000Z" }</div>
-          </div>
+        <div class="token-box">
+          <label for="adminToken">ADMIN TOKEN</label>
+          <input type="password" class="token-input" id="adminToken" placeholder="Bearer Token eingeben…">
+          <span class="token-hint">Wird nur lokal im Browser gespeichert und ausschließlich für Anfragen an diese API verwendet.</span>
         </div>
 
-        <div class="endpoint">
-          <div class="endpoint-header">
-            <span class="method post">POST</span>
-            <span class="endpoint-path">/api/episodes/:id/parse</span>
-            <span class="endpoint-badge admin">admin</span>
+        <!-- /api/logs -->
+        <div class="ep" id="ep-logs">
+          <div class="ep-head" data-toggle-ep="ep-logs">
+            <span class="method get">GET</span>
+            <span class="ep-path">/api/logs</span>
+            <span class="ep-summary">Server-Logs</span>
+            <span class="badge admin">admin</span>
+            <span class="chevron">▶</span>
           </div>
-          <div class="endpoint-body">
-            <div class="endpoint-desc">Analysiert eine einzelne Episode mit OpenAI und extrahiert Kapitel, Gäste, Themen und Film-Titel.</div>
-          </div>
-        </div>
-
-        <div class="endpoint">
-          <div class="endpoint-header">
-            <span class="method post">POST</span>
-            <span class="endpoint-path">/api/parse-all</span>
-            <span class="endpoint-badge admin">admin</span>
-          </div>
-          <div class="endpoint-body">
-            <div class="endpoint-desc">Analysiert alle noch nicht geparsten Episoden im Hintergrund (~3 req/s).</div>
+          <div class="ep-body">
+            <div class="ep-desc">Gibt die letzten Server-Logs zurück (Sync, Parse, Cron, Boot). Max. 500 Einträge.</div>
             <table class="params">
-              <tr><th>Parameter</th><th>Typ</th><th>Beschreibung</th></tr>
-              <tr><td>force <span class="opt">optional</span></td><td>1</td><td>Alle Episoden neu analysieren (auch bereits geparste)</td></tr>
+              <tr><th>Parameter</th><th>Typ</th><th>Beschreibung</th><th>Wert</th></tr>
+              <tr><td>event <span class="opt">optional</span></td><td>string</td><td>Filter: sync, parse, parse-all, cron, boot</td><td><input class="param-input" data-ep="ep-logs" data-param="event" placeholder="z.B. cron"></td></tr>
+              <tr><td>level <span class="opt">optional</span></td><td>string</td><td>Filter: info, error</td><td><input class="param-input" data-ep="ep-logs" data-param="level" placeholder="z.B. error"></td></tr>
+              <tr><td>limit <span class="opt">optional</span></td><td>integer</td><td>Anzahl Einträge (max. 500)</td><td><input class="param-input" data-ep="ep-logs" data-param="limit" placeholder="100" value="20"></td></tr>
             </table>
+            <div class="try-bar">
+              <span class="try-url" id="url-ep-logs"></span>
+              <button class="btn-copy" data-copy-el="url-ep-logs">📋 Kopieren</button>
+              <button class="btn-run" data-run-ep="ep-logs" data-run-admin="1">▶ Ausführen</button>
+            </div>
+            <div class="response-panel">
+              <div class="response-meta" id="meta-ep-logs"><span class="status-pend">— bereit</span></div>
+              <div class="response-body empty" id="res-ep-logs">Token eingeben und „Ausführen" klicken.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- /api/sync -->
+        <div class="ep" id="ep-sync">
+          <div class="ep-head" data-toggle-ep="ep-sync">
+            <span class="method post">POST</span>
+            <span class="ep-path">/api/sync</span>
+            <span class="ep-summary">RSS-Feed synchronisieren</span>
+            <span class="badge admin">admin</span>
+            <span class="chevron">▶</span>
+          </div>
+          <div class="ep-body">
+            <div class="ep-desc">Synchronisiert den RSS-Feed und fügt neue Episoden zur Datenbank hinzu. Gibt die Anzahl aller und neuer Episoden zurück.</div>
+            <div class="try-bar">
+              <span class="try-url" id="url-ep-sync"></span>
+              <button class="btn-copy" data-copy-el="url-ep-sync">📋 Kopieren</button>
+              <button class="btn-run" data-run-ep="ep-sync" data-run-admin="1">▶ Ausführen</button>
+            </div>
+            <div class="response-panel">
+              <div class="response-meta" id="meta-ep-sync"><span class="status-pend">— bereit</span></div>
+              <div class="response-body empty" id="res-ep-sync">Token eingeben und „Ausführen" klicken.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- /api/parse-all -->
+        <div class="ep" id="ep-parse-all">
+          <div class="ep-head" data-toggle-ep="ep-parse-all">
+            <span class="method post">POST</span>
+            <span class="ep-path">/api/parse-all</span>
+            <span class="ep-summary">Alle Episoden mit OpenAI analysieren</span>
+            <span class="badge admin">admin</span>
+            <span class="chevron">▶</span>
+          </div>
+          <div class="ep-body">
+            <div class="ep-desc">Analysiert alle noch nicht geparsten Episoden im Hintergrund (~3 req/s). Mit <code style="font-family:var(--font-mono);font-size:11px;background:var(--bg3);padding:1px 5px">?force=1</code> werden alle Episoden neu analysiert.</div>
+            <table class="params">
+              <tr><th>Parameter</th><th>Typ</th><th>Beschreibung</th><th>Wert</th></tr>
+              <tr><td>force <span class="opt">optional</span></td><td>1</td><td>Alle Episoden neu analysieren</td><td><input class="param-input" data-ep="ep-parse-all" data-param="force" placeholder="1 oder leer"></td></tr>
+            </table>
+            <div class="try-bar">
+              <span class="try-url" id="url-ep-parse-all"></span>
+              <button class="btn-copy" data-copy-el="url-ep-parse-all">📋 Kopieren</button>
+              <button class="btn-run" data-run-ep="ep-parse-all" data-run-admin="1">▶ Ausführen</button>
+            </div>
+            <div class="response-panel">
+              <div class="response-meta" id="meta-ep-parse-all"><span class="status-pend">— bereit</span></div>
+              <div class="response-body empty" id="res-ep-parse-all">Token eingeben und „Ausführen" klicken.</div>
+            </div>
           </div>
         </div>
       </div>
@@ -223,8 +343,158 @@
   </main>
 
   <script>
-    // Set base URL dynamically
-    document.getElementById('baseUrl').textContent = window.location.origin;
+    // ── Endpoint config ───────────────────────────────────────────────────────
+    const BASE = window.location.origin;
+    document.getElementById('baseUrl').textContent = BASE;
+
+    const ENDPOINTS = {
+      'ep-status':     { method: 'GET',  path: '/api/status' },
+      'ep-episodes':   { method: 'GET',  path: '/api/episodes' },
+      'ep-episode-id': { method: 'GET',  path: '/api/episodes/:id' },
+      'ep-guests':     { method: 'GET',  path: '/api/guests' },
+      'ep-topics':     { method: 'GET',  path: '/api/topics' },
+      'ep-logs':       { method: 'GET',  path: '/api/logs' },
+      'ep-sync':       { method: 'POST', path: '/api/sync' },
+      'ep-parse-all':  { method: 'POST', path: '/api/parse-all' },
+    };
+
+    // ── Build URLs ────────────────────────────────────────────────────────────
+    function buildUrl(epId) {
+      const ep = ENDPOINTS[epId];
+      if (!ep) return '';
+      const inputs = document.querySelectorAll(`[data-ep="${epId}"]`);
+      let path = ep.path;
+      const params = new URLSearchParams();
+      inputs.forEach(input => {
+        const key = input.dataset.param;
+        const val = input.value.trim();
+        if (!val) return;
+        if (key.startsWith(':')) {
+          path = path.replace(key, encodeURIComponent(val));
+        } else {
+          params.append(key, val);
+        }
+      });
+      const qs = params.toString();
+      const url = BASE + path + (qs ? '?' + qs : '');
+      const el = document.getElementById('url-' + epId);
+      if (el) el.textContent = url;
+      return url;
+    }
+
+    function buildAllUrls() {
+      Object.keys(ENDPOINTS).forEach(buildUrl);
+    }
+
+    // ── Toggle ────────────────────────────────────────────────────────────────
+    function toggleEp(id) {
+      const el = document.getElementById(id);
+      el.classList.toggle('open');
+      if (el.classList.contains('open')) buildUrl(id);
+    }
+
+    // ── Run request ───────────────────────────────────────────────────────────
+    async function runRequest(epId, requireToken = false) {
+      const ep = ENDPOINTS[epId];
+      const url = buildUrl(epId);
+      const metaEl = document.getElementById('meta-' + epId);
+      const resEl  = document.getElementById('res-' + epId);
+      const token  = document.getElementById('adminToken')?.value.trim();
+
+      if (requireToken && !token) {
+        metaEl.innerHTML = `<span class="status-err">&#9888; Token erforderlich</span>`;
+        resEl.className = 'response-body empty';
+        resEl.textContent = 'Bitte Admin-Token eingeben.';
+        return;
+      }
+
+      metaEl.innerHTML = `<span class="status-pend">&#8987; Lade&#8230;</span>`;
+      resEl.className = 'response-body empty';
+      resEl.textContent = '';
+
+      const headers = { 'Accept': 'application/json' };
+      if (token) headers['Authorization'] = 'Bearer ' + token;
+
+      const t0 = Date.now();
+      try {
+        const res = await fetch(url, { method: ep.method, headers });
+        const ms  = Date.now() - t0;
+        const text = await res.text();
+        let data;
+        try { data = JSON.parse(text); } catch { data = text; }
+
+        const statusCls = res.ok ? 'status-ok' : 'status-err';
+        const size = new Blob([text]).size;
+        const sizeStr = size > 1024 ? (size / 1024).toFixed(1) + ' KB' : size + ' B';
+        metaEl.innerHTML = `
+          <span class="${statusCls}">${res.status} ${res.statusText}</span>
+          <span class="res-time">${ms} ms</span>
+          <span class="res-size">${sizeStr}</span>`;
+
+        resEl.className = 'response-body';
+        if (typeof data === 'object') {
+          resEl.innerHTML = highlightJson(JSON.stringify(data, null, 2));
+        } else {
+          resEl.textContent = text;
+        }
+      } catch (err) {
+        metaEl.innerHTML = `<span class="status-err">Fehler</span>`;
+        resEl.className = 'response-body empty';
+        resEl.textContent = err.message;
+      }
+    }
+
+    // ── JSON highlight ────────────────────────────────────────────────────────
+    function highlightJson(str) {
+      const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      return esc(str).replace(
+        /("(?:\\.|[^"\\])*")(\s*:)|("(?:\\.|[^"\\])*")|(true|false)|(null)|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g,
+        (_, key, colon, str, bool, nil, num) => {
+          if (key && colon) return `<span class="jk">${key}</span>${colon}`;
+          if (str)  return `<span class="js">${str}</span>`;
+          if (bool) return `<span class="jb">${bool}</span>`;
+          if (nil)  return `<span class="jx">${nil}</span>`;
+          if (num)  return `<span class="jn">${num}</span>`;
+          return _;
+        }
+      );
+    }
+
+    // ── Copy ──────────────────────────────────────────────────────────────────
+    function copyUrl(elId, btn) {
+      const text = document.getElementById(elId)?.textContent;
+      if (!text) return;
+      navigator.clipboard.writeText(text).then(() => {
+        btn.textContent = '&#10003; Kopiert';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = '&#128203; Kopieren'; btn.classList.remove('copied'); }, 1500);
+      });
+    }
+
+    // ── Event delegation ──────────────────────────────────────────────────────
+    document.addEventListener('click', (event) => {
+      const head = event.target.closest('[data-toggle-ep]');
+      if (head) { toggleEp(head.dataset.toggleEp); return; }
+
+      const copyBtn = event.target.closest('[data-copy-el]');
+      if (copyBtn) { copyUrl(copyBtn.dataset.copyEl, copyBtn); return; }
+
+      const runBtn = event.target.closest('[data-run-ep]');
+      if (runBtn) { runRequest(runBtn.dataset.runEp, runBtn.dataset.runAdmin === '1'); return; }
+    });
+
+    document.addEventListener('input', (event) => {
+      const input = event.target.closest('.param-input[data-ep]');
+      if (input) { buildUrl(input.dataset.ep); return; }
+
+      if (event.target.id === 'adminToken') {
+        ['ep-logs', 'ep-sync', 'ep-parse-all'].forEach(buildUrl);
+      }
+    });
+
+    // ── Init ──────────────────────────────────────────────────────────────────
+    buildAllUrls();
+    runRequest('ep-status');
   </script>
 </body>
 </html>

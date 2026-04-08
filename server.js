@@ -313,7 +313,7 @@ app.get('/api/episodes', (req, res) => {
   }
 
   const total    = dbGet(`SELECT COUNT(*) as c FROM episodes WHERE ${where}`, params)?.c || 0;
-  const episodes = dbAll(`SELECT * FROM episodes WHERE ${where} ORDER BY pub_ts ASC LIMIT ? OFFSET ?`,
+  const episodes = dbAll(`SELECT * FROM episodes WHERE ${where} ORDER BY pub_ts DESC LIMIT ? OFFSET ?`,
     [...params, lim, off]).map(serializeEpisode);
   res.json({ total, limit: lim, offset: off, episodes });
 });
