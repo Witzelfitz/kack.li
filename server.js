@@ -24,7 +24,6 @@ const openai = OPENAI_API_KEY ? new OpenAI({ apiKey: OPENAI_API_KEY }) : null;
 // ── Middleware ────────────────────────────────────────────────────────────────
 app.use(express.json());
 
-// CORS – public read access, admin endpoints require token
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -33,7 +32,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Rate limiting for public API (100 req / 15 min per IP)
 const publicLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -42,7 +40,6 @@ const publicLimiter = rateLimit({
   message: { error: 'Zu viele Anfragen, bitte später erneut versuchen.' },
 });
 
-// Admin auth middleware
 function requireAdmin(req, res, next) {
   const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
   if (!process.env.ADMIN_TOKEN || token !== process.env.ADMIN_TOKEN) {
@@ -71,6 +68,14 @@ async function initDb() {
       episode_num INTEGER, image_url TEXT, link TEXT
     );
     CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
+    CREATE TABLE IF NOT EXISTS logs (
+      id      INTEGER PRIMARY KEY AUTOINCREMENT,
+      ts      TEXT    NOT NULL,
+      level   TEXT    NOT NULL DEFAULT 'info',
+      event   TEXT    NOT NULL,
+      message TEXT,
+      meta_json TEXT
+    );
   `);
   for (const col of [
     'pub_ts INTEGER',
@@ -110,6 +115,20 @@ function tryJson(str) {
   try { const v = JSON.parse(str); return Array.isArray(v) ? v : []; } catch { return []; }
 }
 
+// ── Logging ───────────────────────────────────────────────────────────────────
+function log(event, message, meta = null, level = 'info') {
+  const ts  = new Date().toISOString();
+  const out = `[${ts}] [${event}] ${message}`;
+  level === 'error' ? console.error(out) : console.log(out);
+  if (!db) return;
+  dbRun(
+    'INSERT INTO logs (ts, level, event, message, meta_json) VALUES (?,?,?,?,?)',
+    [ts, level, event, message, meta ? JSON.stringify(meta) : null]
+  );
+  // Trim to last 2000 entries to prevent unbounded growth
+  dbRun('DELETE FROM logs WHERE id NOT IN (SELECT id FROM logs ORDER BY id DESC LIMIT 2000)');
+}
+
 // ── RSS Sync ──────────────────────────────────────────────────────────────────
 function stripHtml(str) {
   return (str || '').replace(/<[^>]*>/g, '')
@@ -117,7 +136,7 @@ function stripHtml(str) {
 }
 
 async function syncFeed() {
-  console.log('[sync] Fetching RSS...');
+  log('sync', 'RSS-Feed wird abgerufen…');
   const res = await fetch(RSS_URL, { headers: { 'User-Agent': 'KuS-EpisodenApp/1.0' } });
   if (!res.ok) throw new Error('HTTP ' + res.status);
   const xml = await res.text();
@@ -149,8 +168,8 @@ async function syncFeed() {
   }
   const now = new Date().toISOString();
   dbRun(`INSERT INTO meta VALUES ('last_sync',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`, [now]);
+  log('sync', `Abgeschlossen: ${items.length} Episoden, ${newCount} neu`, { total: items.length, new: newCount });
   saveDb();
-  console.log(`[sync] ✓ ${items.length} Episoden (${newCount} neu) | ${now}`);
   return { count: items.length, new: newCount, synced_at: now };
 }
 
@@ -205,26 +224,33 @@ function saveParsed(id, data) {
 
 // ── Nightly Cron ──────────────────────────────────────────────────────────────
 cron.schedule('0 3 * * *', async () => {
-  console.log('[cron] Nachtlauf: Sync + Parse neuer Episoden...');
+  log('cron', 'Nachtlauf gestartet');
   try {
     const result = await syncFeed();
     if (openai && result.new > 0) {
       const unparsed = dbAll('SELECT id FROM episodes WHERE parsed_at IS NULL ORDER BY pub_ts ASC');
-      console.log(`[cron] ${unparsed.length} ungeparste Episoden...`);
+      log('cron', `${unparsed.length} neue Episoden werden geparst…`, { count: unparsed.length });
+      let done = 0, errors = 0;
       for (const { id } of unparsed) {
         const ep = dbGet('SELECT * FROM episodes WHERE id = ?', [id]);
         try {
           saveParsed(id, await parseEpisode(ep));
-          console.log(`[cron] Geparst: ${ep.title?.slice(0,50)}`);
+          done++;
+          log('cron', `Geparst: ${ep.title?.slice(0, 60)}`, { episode_id: id });
         } catch (err) {
-          console.error(`[cron] Parse-Fehler #${id}:`, err.message);
+          errors++;
+          log('cron', `Parse-Fehler Episode #${id}: ${err.message}`, { episode_id: id }, 'error');
         }
         await new Promise(r => setTimeout(r, 400));
       }
+      log('cron', `Nachtlauf abgeschlossen: ${done} OK, ${errors} Fehler`, { done, errors });
+    } else {
+      log('cron', 'Keine neuen Episoden – kein Parse nötig', { new: result.new });
     }
   } catch (err) {
-    console.error('[cron] Fehler:', err.message);
+    log('cron', `Fehler: ${err.message}`, null, 'error');
   }
+  saveDb();
 });
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -237,7 +263,6 @@ app.get('/api/episodes', (req, res) => {
   const off = parseInt(offset) || 0;
 
   let where = '1=1', params = [];
-
   if (q?.trim()) {
     where += ' AND (title LIKE ? OR description LIKE ?)';
     const t = `%${q.trim()}%`;
@@ -268,30 +293,18 @@ app.get('/api/guests', (req, res) => {
   const rows = dbAll('SELECT guests_json FROM episodes WHERE guests_json IS NOT NULL AND guests_json != ?', ['[]']);
   const counts = {};
   for (const row of rows) {
-    for (const g of tryJson(row.guests_json)) {
-      counts[g] = (counts[g] || 0) + 1;
-    }
+    for (const g of tryJson(row.guests_json)) counts[g] = (counts[g] || 0) + 1;
   }
-  res.json(
-    Object.entries(counts)
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count)
-  );
+  res.json(Object.entries(counts).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count));
 });
 
 app.get('/api/topics', (req, res) => {
   const rows = dbAll('SELECT topics_json FROM episodes WHERE topics_json IS NOT NULL AND topics_json != ?', ['[]']);
   const counts = {};
   for (const row of rows) {
-    for (const t of tryJson(row.topics_json)) {
-      counts[t] = (counts[t] || 0) + 1;
-    }
+    for (const t of tryJson(row.topics_json)) counts[t] = (counts[t] || 0) + 1;
   }
-  res.json(
-    Object.entries(counts)
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count)
-  );
+  res.json(Object.entries(counts).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count));
 });
 
 app.get('/api/status', (req, res) => {
@@ -305,10 +318,26 @@ app.get('/api/status', (req, res) => {
   });
 });
 
-// ── Admin API (token protected) ───────────────────────────────────────────────
+// ── Admin API ─────────────────────────────────────────────────────────────────
+app.get('/api/logs', requireAdmin, (req, res) => {
+  const { limit = 100, event, level } = req.query;
+  const lim = Math.min(parseInt(limit) || 100, 500);
+
+  let where = '1=1', params = [];
+  if (event) { where += ' AND event = ?'; params.push(event); }
+  if (level) { where += ' AND level = ?'; params.push(level); }
+
+  const logs  = dbAll(`SELECT * FROM logs WHERE ${where} ORDER BY id DESC LIMIT ?`, [...params, lim]);
+  const total = dbGet(`SELECT COUNT(*) as c FROM logs WHERE ${where}`, params)?.c || 0;
+  res.json({ total, logs });
+});
+
 app.post('/api/sync', requireAdmin, async (req, res) => {
   try { res.json({ ok: true, ...(await syncFeed()) }); }
-  catch (err) { res.status(500).json({ ok: false, error: err.message }); }
+  catch (err) {
+    log('sync', `Fehler: ${err.message}`, null, 'error');
+    res.status(500).json({ ok: false, error: err.message });
+  }
 });
 
 app.post('/api/episodes/:id/parse', requireAdmin, async (req, res) => {
@@ -318,9 +347,11 @@ app.post('/api/episodes/:id/parse', requireAdmin, async (req, res) => {
   try {
     const data = await parseEpisode(ep);
     saveParsed(ep.id, data);
-    console.log(`[parse] #${ep.id} "${ep.title?.slice(0,40)}" ✓`);
+    log('parse', `Episode #${ep.id} geparst: ${ep.title?.slice(0, 50)}`,
+      { episode_id: ep.id, guests: data.guests.length, chapters: data.chapters.length, topics: data.topics.length });
     res.json({ ok: true, ...data });
   } catch (err) {
+    log('parse', `Fehler Episode #${ep.id}: ${err.message}`, { episode_id: ep.id }, 'error');
     res.status(500).json({ error: err.message });
   }
 });
@@ -332,6 +363,7 @@ app.post('/api/parse-all', requireAdmin, async (req, res) => {
     ? 'SELECT id FROM episodes ORDER BY pub_ts ASC'
     : 'SELECT id FROM episodes WHERE parsed_at IS NULL ORDER BY pub_ts ASC';
   const unparsed = dbAll(sql);
+  log('parse-all', `Gestartet: ${unparsed.length} Episoden (force=${force})`, { queued: unparsed.length, force });
   res.json({ ok: true, queued: unparsed.length });
   (async () => {
     let done = 0, errors = 0;
@@ -340,29 +372,33 @@ app.post('/api/parse-all', requireAdmin, async (req, res) => {
       try {
         saveParsed(id, await parseEpisode(ep));
         done++;
-        console.log(`[parse-all] ${done}/${unparsed.length} – ${ep.title?.slice(0,45)}`);
+        log('parse-all', `${done}/${unparsed.length} – ${ep.title?.slice(0, 50)}`, { episode_id: id, done, total: unparsed.length });
       } catch (err) {
         errors++;
-        console.error(`[parse-all] Fehler #${id}:`, err.message);
+        log('parse-all', `Fehler #${id}: ${err.message}`, { episode_id: id }, 'error');
       }
       await new Promise(r => setTimeout(r, 300));
     }
-    console.log(`[parse-all] Fertig. ${done} OK, ${errors} Fehler.`);
+    log('parse-all', `Abgeschlossen: ${done} OK, ${errors} Fehler`, { done, errors });
+    saveDb();
   })();
 });
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 initDb().then(() => {
-  app.listen(PORT, async () => {
-    console.log('\n🎙  KuS Episoden → http://localhost:' + PORT);
-    console.log('[openai]', openai ? 'API key gesetzt ✓' : 'kein API key');
-    console.log('[admin] ', process.env.ADMIN_TOKEN ? 'Token gesetzt ✓' : '⚠ ADMIN_TOKEN fehlt in .env');
+  app.listen(PORT, () => {
+    log('boot', `Server gestartet auf Port ${PORT}`, { port: PORT });
+    log('boot', openai ? 'OpenAI API key gesetzt ✓' : 'Kein OpenAI API key – Parse-Funktionen deaktiviert');
+    log('boot', process.env.ADMIN_TOKEN ? 'Admin-Token gesetzt ✓' : '⚠ ADMIN_TOKEN fehlt in .env', null,
+      process.env.ADMIN_TOKEN ? 'info' : 'error');
+    saveDb();
     const count = dbGet('SELECT COUNT(*) as c FROM episodes');
     if (!count?.c) {
-      console.log('[boot] DB leer – starte initialen Sync...');
-      await syncFeed().catch(console.error);
+      log('boot', 'DB leer – starte initialen Sync…');
+      syncFeed().catch(err => log('boot', `Initialer Sync fehlgeschlagen: ${err.message}`, null, 'error'));
     } else {
-      console.log('[boot]', count.c, 'Episoden in DB.\n');
+      log('boot', `${count.c} Episoden in DB`);
+      saveDb();
     }
   });
 });
