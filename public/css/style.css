@@ -51,6 +51,7 @@ header {
   align-items: baseline;
   gap: 0;
   flex-wrap: wrap;
+  text-decoration: none;
 }
 
 .logo-kack {

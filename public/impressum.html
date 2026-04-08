@@ -3,51 +3,40 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Impressum – Kack & Sachgeschichten</title>
+  <title>Impressum – kack.li</title>
   <link rel="stylesheet" href="css/style.css">
-  <style>
-    .static-page { max-width: 680px; margin: 0 auto; padding: 48px 24px; }
-    .static-page h1 { font-size: 28px; font-weight: 700; margin-bottom: 32px; }
-    .static-page h2 { font-size: 14px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text3); margin: 28px 0 8px; }
-    .static-page p, .static-page address { font-size: 14px; color: var(--text2); line-height: 1.75; font-style: normal; }
-    .static-page a { color: var(--accent); text-decoration: none; }
-    .static-page a:hover { text-decoration: underline; }
-    .back-link { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text3); text-decoration: none; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 40px; transition: color 0.15s; }
-    .back-link:hover { color: var(--text2); }
-  </style>
+  <link rel="stylesheet" href="css/static.css">
 </head>
 <body>
   <header>
     <div class="header-inner">
-      <div class="logo-block">
+      <a href="/" class="logo-block">
         <span class="logo-kack">KACK</span>
         <span class="logo-amp">&</span>
         <span class="logo-sach">SACH<br>GESCHICHTEN</span>
-      </div>
+        <span class="logo-tag">DER PODCAST MIT KLUGSCHISS</span>
+      </a>
       <nav class="header-nav">
         <a href="/">Episoden</a>
         <a href="/docs.html">API</a>
+        <a href="/datenschutz.html">Datenschutz</a>
       </nav>
     </div>
   </header>
 
   <main>
     <div class="static-page">
-      <a class="back-link" href="/">← Zurück</a>
       <h1>Impressum</h1>
 
       <h2>Angaben gemäß § 5 TMG</h2>
       <address>
         [NAME]<br>
         [STRASSE UND HAUSNUMMER]<br>
-        [PLZ ORT]<br>
-        Deutschland
+        [PLZ ORT]
       </address>
 
       <h2>Kontakt</h2>
-      <p>
-        E-Mail: <a href="mailto:[EMAIL]">[EMAIL]</a>
-      </p>
+      <p>E-Mail: <a href="mailto:[EMAIL]">[EMAIL]</a></p>
 
       <h2>Verantwortlich für den Inhalt nach § 55 Abs. 2 RStV</h2>
       <address>
@@ -55,21 +44,23 @@
         [ADRESSE WIE OBEN]
       </address>
 
-      <h2>Haftungsausschluss</h2>
+      <h2>Hinweis</h2>
       <p>
-        Diese Website stellt eine inoffizielle Episodenübersicht des Podcasts
-        „Kack & Sachgeschichten" bereit. Alle Episodeninformationen stammen aus
-        dem öffentlichen RSS-Feed des Podcasts. Für die Richtigkeit und
-        Vollständigkeit der Angaben wird keine Gewähr übernommen.
+        kack.li ist ein inoffizielles, privates Projekt und steht in keiner Verbindung
+        zum Podcast „Kack & Sachgeschichten" oder dessen Betreibern. Alle
+        Episodeninformationen stammen aus dem öffentlich zugänglichen RSS-Feed des
+        Podcasts. Die strukturierten Metadaten (Kapitel, Gäste, Themen, Film-Titel)
+        wurden mittels KI-Analyse generiert.
       </p>
 
-      <h2>Urheberrecht</h2>
+      <h2>Haftungsausschluss</h2>
       <p>
-        Die über die API abrufbaren Episodendaten (Titel, Beschreibungen,
-        Metadaten) sind Eigentum der jeweiligen Rechteinhaber von
-        „Kack & Sachgeschichten". Die strukturierten Daten (Kapitel, Gäste,
-        Themen) wurden mittels KI-Analyse generiert und sind frei nutzbar.
+        Trotz sorgfältiger inhaltlicher Kontrolle übernehmen wir keine Haftung für
+        die Inhalte externer Links. Für den Inhalt der verlinkten Seiten sind
+        ausschließlich deren Betreiber verantwortlich.
       </p>
+
+      <p><a href="/datenschutz.html">→ Datenschutzerklärung</a></p>
     </div>
   </main>
 </body>
