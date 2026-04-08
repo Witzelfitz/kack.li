@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API – Kack & Sachgeschichten</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .static-page   { max-width: 860px; margin: 0 auto; padding: 48px 24px; }
+    .static-page h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+    .static-page .subtitle { font-size: 14px; color: var(--text3); margin-bottom: 48px; }
+    .back-link { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text3); text-decoration: none; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 40px; transition: color 0.15s; }
+    .back-link:hover { color: var(--text2); }
+
+    .endpoint-group { margin-bottom: 48px; }
+    .endpoint-group-title { font-size: 11px; font-family: var(--font-mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--text3); border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 20px; }
+
+    .endpoint { background: var(--bg2); border: 1px solid var(--border); margin-bottom: 12px; }
+    .endpoint-header { display: flex; align-items: center; gap: 12px; padding: 14px 18px; }
+    .method { font-family: var(--font-mono); font-size: 11px; font-weight: 700; padding: 3px 8px; letter-spacing: 0.06em; min-width: 46px; text-align: center; }
+    .method.get  { background: rgba(34,197,94,0.15); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
+    .method.post { background: rgba(233,0,20,0.12); color: var(--accent); border: 1px solid rgba(233,0,20,0.3); }
+    .endpoint-path { font-family: var(--font-mono); font-size: 13px; color: var(--text); }
+    .endpoint-badge { margin-left: auto; font-size: 10px; font-family: var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text3); border: 1px solid var(--border2); padding: 2px 8px; }
+    .endpoint-badge.admin { color: var(--accent); border-color: rgba(233,0,20,0.4); }
+
+    .endpoint-body { padding: 0 18px 16px; border-top: 1px solid var(--border); }
+    .endpoint-desc { font-size: 13px; color: var(--text2); line-height: 1.65; padding: 12px 0 10px; }
+
+    .params { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    .params th { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text3); text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border); }
+    .params td { font-size: 12px; color: var(--text2); padding: 7px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    .params td:first-child { font-family: var(--font-mono); color: var(--text); }
+    .params td .opt { font-size: 10px; color: var(--text3); margin-left: 4px; }
+    .params tr:last-child td { border-bottom: none; }
+
+    .code-block { background: var(--bg); border: 1px solid var(--border); padding: 14px 16px; margin-top: 12px; font-family: var(--font-mono); font-size: 12px; color: var(--text2); line-height: 1.7; overflow-x: auto; white-space: pre; }
+
+    .auth-box { background: rgba(233,0,20,0.07); border: 1px solid rgba(233,0,20,0.25); padding: 14px 18px; margin-bottom: 32px; font-size: 13px; color: var(--text2); line-height: 1.65; }
+    .auth-box code { font-family: var(--font-mono); color: var(--text); background: var(--bg3); padding: 1px 6px; }
+
+    .base-url { font-family: var(--font-mono); font-size: 14px; color: var(--text); background: var(--bg2); border: 1px solid var(--border); padding: 10px 16px; display: inline-block; margin-bottom: 32px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <div class="logo-block">
+        <span class="logo-kack">KACK</span>
+        <span class="logo-amp">&</span>
+        <span class="logo-sach">SACH<br>GESCHICHTEN</span>
+      </div>
+      <nav class="header-nav">
+        <a href="/">Episoden</a>
+        <a href="/impressum.html">Impressum</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="static-page">
+      <a class="back-link" href="/">← Zurück</a>
+      <h1>API-Dokumentation</h1>
+      <p class="subtitle">Öffentliche REST-API für Episodendaten von Kack &amp; Sachgeschichten.</p>
+
+      <div class="base-url" id="baseUrl">https://kack.li</div>
+
+      <div class="auth-box">
+        <strong>Authentifizierung:</strong> GET-Endpunkte sind öffentlich zugänglich (100 Anfragen / 15 Minuten pro IP).
+        Admin-Endpunkte (POST) erfordern einen Bearer-Token im <code>Authorization</code>-Header:
+        <code>Authorization: Bearer &lt;ADMIN_TOKEN&gt;</code>
+      </div>
+
+      <!-- PUBLIC -->
+      <div class="endpoint-group">
+        <div class="endpoint-group-title">Öffentliche Endpunkte</div>
+
+        <div class="endpoint">
+          <div class="endpoint-header">
+            <span class="method get">GET</span>
+            <span class="endpoint-path">/api/episodes</span>
+            <span class="endpoint-badge">public</span>
+          </div>
+          <div class="endpoint-body">
+            <div class="endpoint-desc">Gibt eine paginierte Liste aller Episoden zurück. Unterstützt Volltextsuche sowie Filterung nach Gast oder Thema.</div>
+            <table class="params">
+              <tr><th>Parameter</th><th>Typ</th><th>Beschreibung</th></tr>
+              <tr><td>q <span class="opt">optional</span></td><td>string</td><td>Volltextsuche in Titel und Beschreibung</td></tr>
+              <tr><td>guest <span class="opt">optional</span></td><td>string</td><td>Filter nach Gastname</td></tr>
+              <tr><td>topic <span class="opt">optional</span></td><td>string</td><td>Filter nach Thema</td></tr>
+              <tr><td>limit <span class="opt">optional</span></td><td>integer</td><td>Anzahl Ergebnisse (Standard: 24, max: 100)</td></tr>
+              <tr><td>offset <span class="opt">optional</span></td><td>integer</td><td>Offset für Paginierung (Standard: 0)</td></tr>
+            </table>
+            <div class="code-block">{
+  "total": 392,
+  "limit": 24,
+  "offset": 0,
+  "episodes": [
+    {
+      "id": 383,
+      "title": "#008: Independence Day 2 – Die Kamikaze-Scheibe",
+      "film_title": "Independence Day: Wiederkehr",
+      "pub_date": "Mon, 01 Aug 2016 10:11:45 +0200",
+      "duration": "1:23:45",
+      "episode_num": 8,
+      "guests_json": "[\"Max Mustermann\"]",
+      "topics_json": "[\"Science-Fiction\", \"Blockbuster\", \"Weltuntergang\"]",
+      "chapters_json": "[{\"time\":\"00:05:00\",\"title\":\"Intro\"}]",
+      "parsed_at": "2026-04-08T10:00:00.000Z",
+      ...
+    }
+  ]
+}</div>
+          </div>
+        </div>
+
+        <div class="endpoint">
+          <div class="endpoint-header">
+            <span class="method get">GET</span>
+            <span class="endpoint-path">/api/episodes/:id</span>
+            <span class="endpoint-badge">public</span>
+          </div>
+          <div class="endpoint-body">
+            <div class="endpoint-desc">Gibt eine einzelne Episode mit allen Feldern zurück.</div>
+          </div>
+        </div>
+
+        <div class="endpoint">
+          <div class="endpoint-header">
+            <span class="method get">GET</span>
+            <span class="endpoint-path">/api/guests</span>
+            <span class="endpoint-badge">public</span>
+          </div>
+          <div class="endpoint-body">
+            <div class="endpoint-desc">Liste aller Gäste, sortiert nach Anzahl der Auftritte.</div>
+            <div class="code-block">[
+  { "name": "Dag von SDP",          "count": 12 },
+  { "name": "Alea (Saltatio Mortis)", "count": 3  },
+  ...
+]</div>
+          </div>
+        </div>
+
+        <div class="endpoint">
+          <div class="endpoint-header">
+            <span class="method get">GET</span>
+            <span class="endpoint-path">/api/topics</span>
+            <span class="endpoint-badge">public</span>
+          </div>
+          <div class="endpoint-body">
+            <div class="endpoint-desc">Liste aller Themen, sortiert nach Häufigkeit.</div>
+            <div class="code-block">[
+  { "name": "Science-Fiction", "count": 47 },
+  { "name": "Gaming",          "count": 38 },
+  ...
+]</div>
+          </div>
+        </div>
+
+        <div class="endpoint">
+          <div class="endpoint-header">
+            <span class="method get">GET</span>
+            <span class="endpoint-path">/api/status</span>
+            <span class="endpoint-badge">public</span>
+          </div>
+          <div class="endpoint-body">
+            <div class="endpoint-desc">Gibt den aktuellen Status der Datenbank zurück.</div>
+            <div class="code-block">{
+  "episodes": 392,
+  "parsed": 392,
+  "last_sync": "2026-04-08T09:00:00.000Z",
+  "openai": true
+}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ADMIN -->
+      <div class="endpoint-group">
+        <div class="endpoint-group-title">Admin-Endpunkte (Bearer-Token erforderlich)</div>
+
+        <div class="endpoint">
+          <div class="endpoint-header">
+            <span class="method post">POST</span>
+            <span class="endpoint-path">/api/sync</span>
+            <span class="endpoint-badge admin">admin</span>
+          </div>
+          <div class="endpoint-body">
+            <div class="endpoint-desc">Synchronisiert den RSS-Feed und fügt neue Episoden zur Datenbank hinzu.</div>
+            <div class="code-block">{ "ok": true, "count": 392, "new": 2, "synced_at": "2026-04-08T09:00:00.000Z" }</div>
+          </div>
+        </div>
+
+        <div class="endpoint">
+          <div class="endpoint-header">
+            <span class="method post">POST</span>
+            <span class="endpoint-path">/api/episodes/:id/parse</span>
+            <span class="endpoint-badge admin">admin</span>
+          </div>
+          <div class="endpoint-body">
+            <div class="endpoint-desc">Analysiert eine einzelne Episode mit OpenAI und extrahiert Kapitel, Gäste, Themen und Film-Titel.</div>
+          </div>
+        </div>
+
+        <div class="endpoint">
+          <div class="endpoint-header">
+            <span class="method post">POST</span>
+            <span class="endpoint-path">/api/parse-all</span>
+            <span class="endpoint-badge admin">admin</span>
+          </div>
+          <div class="endpoint-body">
+            <div class="endpoint-desc">Analysiert alle noch nicht geparsten Episoden im Hintergrund (~3 req/s).</div>
+            <table class="params">
+              <tr><th>Parameter</th><th>Typ</th><th>Beschreibung</th></tr>
+              <tr><td>force <span class="opt">optional</span></td><td>1</td><td>Alle Episoden neu analysieren (auch bereits geparste)</td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // Set base URL dynamically
+    document.getElementById('baseUrl').textContent = window.location.origin;
+  </script>
+</body>
+</html>
