@@ -4,6 +4,7 @@ let currentPage  = 0;
 let currentQuery = '';
 let currentGuest = '';
 let currentTopic = '';
+let currentFormat = '';
 let searchTimer  = null;
 
 // ── Init ──────────────────────────────────────────────────────────────────────
@@ -34,6 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('pagination').addEventListener('click', handlePaginationClick);
   document.getElementById('modalBackdrop').addEventListener('click', closeModal);
   document.getElementById('modalBody').addEventListener('click', handleSetFilterClick);
+  document.getElementById('modalBody').addEventListener('submit', handleSuggestionSubmit);
   document.querySelector('.modal-close').addEventListener('click', closeModal);
   modal.addEventListener('click', (event) => event.stopPropagation());
 });
@@ -42,7 +44,7 @@ function handleSetFilterClick(event) {
   const button = event.target.closest('button[data-action="set-filter"]');
   if (!button) return;
   const type = button.dataset.type;
-  if (type !== 'guest' && type !== 'topic') return;
+  if (type !== 'guest' && type !== 'topic' && type !== 'format') return;
   event.preventDefault();
   if (button.dataset.closeModal === '1') closeModal();
   setFilter(type, button.dataset.value || '');
@@ -63,10 +65,19 @@ function handlePaginationClick(event) {
 }
 
 // ── API ───────────────────────────────────────────────────────────────────────
-async function api(path) {
-  const res = await fetch(path);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+async function api(path, options = {}) {
+  const init = { ...options };
+  if (init.body && typeof init.body === 'object' && !(init.body instanceof FormData)) {
+    init.headers = {
+      'Content-Type': 'application/json',
+      ...(init.headers || {}),
+    };
+    init.body = JSON.stringify(init.body);
+  }
+  const res = await fetch(path, init);
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+  return data;
 }
 
 // ── Status ────────────────────────────────────────────────────────────────────
@@ -90,9 +101,14 @@ let filterPanelOpen = false;
 
 async function loadFilters() {
   try {
-    const [guests, topics] = await Promise.all([api('/api/guests'), api('/api/topics')]);
-    if (!guests.length && !topics.length) return;
+    const [formats, guests, topics] = await Promise.all([
+      api('/api/formats'),
+      api('/api/guests'),
+      api('/api/topics'),
+    ]);
+    if (!formats.length && !guests.length && !topics.length) return;
     document.getElementById('filterToggle').style.display = '';
+    renderFilterTags('formatTags', formats, 'format');
     renderFilterTags('guestTags', guests.slice(0, 30), 'guest');
     renderFilterTags('topicTags', topics.slice(0, 40), 'topic');
     updateFilterUI();
@@ -116,13 +132,19 @@ function renderFilterTags(containerId, items, type) {
 }
 
 function setFilter(type, value) {
-  if (type !== 'guest' && type !== 'topic') return;
+  if (type !== 'guest' && type !== 'topic' && type !== 'format') return;
   if (type === 'guest') {
     currentGuest = currentGuest === value ? '' : value;
     currentTopic = '';
-  } else {
+    currentFormat = '';
+  } else if (type === 'topic') {
     currentTopic = currentTopic === value ? '' : value;
     currentGuest = '';
+    currentFormat = '';
+  } else {
+    currentFormat = currentFormat === value ? '' : value;
+    currentGuest = '';
+    currentTopic = '';
   }
   currentPage = 0;
   // Close panel after selection
@@ -137,21 +159,23 @@ function updateFilterUI() {
   // Highlight active tags in panel
   document.querySelectorAll('.filter-tag').forEach(btn => {
     const active = (btn.dataset.type === 'guest' && btn.dataset.value === currentGuest)
-                || (btn.dataset.type === 'topic' && btn.dataset.value === currentTopic);
+                || (btn.dataset.type === 'topic' && btn.dataset.value === currentTopic)
+                || (btn.dataset.type === 'format' && btn.dataset.value === currentFormat);
     btn.classList.toggle('active', active);
   });
   // Show/hide active filter chip in toolbar
-  const active = currentGuest || currentTopic;
+  const active = currentGuest || currentTopic || currentFormat;
   const chip   = document.getElementById('filterChip');
   const toggle = document.getElementById('filterToggle');
   chip.style.display   = active ? '' : 'none';
   toggle.style.display = active ? 'none' : '';
-  if (active) chip.textContent = '✕ ' + (currentGuest || currentTopic);
+  if (active) chip.textContent = '✕ ' + active;
 }
 
 function clearFilters() {
   currentGuest = '';
   currentTopic = '';
+  currentFormat = '';
   currentPage  = 0;
   updateFilterUI();
   loadEpisodes();
@@ -168,6 +192,7 @@ async function loadEpisodes() {
     ...(currentQuery ? { q: currentQuery } : {}),
     ...(currentGuest ? { guest: currentGuest } : {}),
     ...(currentTopic ? { topic: currentTopic } : {}),
+    ...(currentFormat ? { format: currentFormat } : {}),
   });
 
   try {
@@ -200,6 +225,7 @@ function renderEpisodes(episodes, total) {
         <span class="card-date">${formatDate(ep.pub_date)}</span>
         ${ep.duration ? `<span class="card-dot">·</span><span class="card-duration">${formatDuration(ep.duration)}</span>` : ''}
       </div>
+      ${ep.format_name ? `<div class="card-format">${escHtml(ep.format_name)}</div>` : ''}
       <div class="card-title">${escHtml(ep.title)}</div>
       ${ep.film_title ? `<div class="card-film">↳ ${escHtml(ep.film_title)}</div>` : ''}
       ${guests.length ? `<div class="card-guests">${guests.map(g => `<span class="card-guest-tag">${escHtml(g)}</span>`).join('')}</div>` : ''}
@@ -235,6 +261,95 @@ function goPage(page) {
 }
 
 // ── Modal ─────────────────────────────────────────────────────────────────────
+function renderModalDescription(text) {
+  const desc = String(text || '').trim();
+  if (!desc) return '';
+
+  const separator = /(?:^|\r?\n)[ \t]*(?:---|-\s*-\s*-)[ \t]*(?:\r?\n|$)/m;
+  const match = desc.match(separator);
+
+  if (!match || typeof match.index !== 'number') {
+    const preview = desc.length > 2000 ? `${desc.slice(0, 2000).trim()}\n\n[…]` : desc;
+    return `<div class="modal-desc">${escHtml(preview)}</div>`;
+  }
+
+  const intro = desc.slice(0, match.index).trim();
+  const rest = desc.slice(match.index + match[0].length).trim();
+
+  if (!rest) return intro ? `<div class="modal-desc">${escHtml(intro)}</div>` : '';
+
+  return `
+    <div class="modal-desc">
+      ${intro ? `<div class="modal-desc-preview">${escHtml(intro)}</div>` : ''}
+      <details class="modal-desc-details">
+        <summary class="modal-desc-toggle">
+          <span class="modal-desc-more">Mehr anzeigen</span>
+          <span class="modal-desc-less">Weniger anzeigen</span>
+        </summary>
+        <div class="modal-desc-rest">${escHtml(rest)}</div>
+      </details>
+    </div>
+  `;
+}
+
+function renderSuggestionForm(episodeId) {
+  return `
+    <div class="suggestion-box">
+      <div class="parsed-label">COMMUNITY-VORSCHLAG</div>
+      <p class="suggestion-copy">Gäste oder Themen vorschlagen. Neue Einträge werden gesammelt und erst nach Prüfung übernommen.</p>
+      <form class="suggestion-form" data-episode-id="${episodeId}">
+        <div class="suggestion-row">
+          <select class="suggestion-select" name="type" aria-label="Vorschlagstyp">
+            <option value="guest">Gast</option>
+            <option value="topic">Thema</option>
+          </select>
+          <input class="suggestion-input" type="text" name="value" maxlength="120" placeholder="Vorschlag eingeben" required>
+        </div>
+        <textarea class="suggestion-note" name="note" rows="3" maxlength="500" placeholder="Optional: kurzer Hinweis oder Begründung"></textarea>
+        <div class="suggestion-actions">
+          <button class="btn-suggest" type="submit">Vorschlag senden</button>
+          <div class="suggestion-status" aria-live="polite"></div>
+        </div>
+      </form>
+    </div>
+  `;
+}
+
+async function handleSuggestionSubmit(event) {
+  const form = event.target.closest('.suggestion-form');
+  if (!form) return;
+  event.preventDefault();
+
+  const episodeId = Number.parseInt(form.dataset.episodeId, 10);
+  if (!Number.isInteger(episodeId) || episodeId <= 0) return;
+
+  const submitButton = form.querySelector('.btn-suggest');
+  const status = form.querySelector('.suggestion-status');
+  const formData = new FormData(form);
+  const type = String(formData.get('type') || '').trim();
+  const value = String(formData.get('value') || '').trim();
+  const note = String(formData.get('note') || '').trim();
+
+  submitButton.disabled = true;
+  status.textContent = 'Sende…';
+  status.className = 'suggestion-status';
+
+  try {
+    await api(`/api/episodes/${episodeId}/suggestions`, {
+      method: 'POST',
+      body: { type, value, note },
+    });
+    form.reset();
+    status.textContent = 'Gespeichert. Der Vorschlag wartet jetzt auf Prüfung.';
+    status.classList.add('success');
+  } catch (err) {
+    status.textContent = err.message;
+    status.classList.add('error');
+  } finally {
+    submitButton.disabled = false;
+  }
+}
+
 async function openModal(id) {
   const backdrop = document.getElementById('modalBackdrop');
   const body     = document.getElementById('modalBody');
@@ -244,23 +359,23 @@ async function openModal(id) {
 
   try {
     const ep   = await api(`/api/episodes/${id}`);
-    const desc = (ep.description || ep.summary || '').slice(0, 2000);
+    const desc = ep.description || ep.summary || '';
     const spotifyUrl = `https://open.spotify.com/search/${encodeURIComponent((ep.title || '') + ' Kack Sachgeschichten')}/episodes`;
-    const websiteUrl = sanitizeHttpUrl(ep.link);
 
     body.innerHTML = `
       ${ep.episode_num ? `<div class="modal-num">Episode #${String(ep.episode_num).padStart(3,'0')}</div>` : ''}
       <h2 class="modal-title">${escHtml(ep.title)}</h2>
+      ${ep.format_name ? `<div class="modal-format">${escHtml(ep.format_name)}</div>` : ''}
       ${ep.film_title ? `<div class="modal-film">↳ ${escHtml(ep.film_title)}</div>` : ''}
       <div class="modal-meta">
         <span>📅 ${formatDate(ep.pub_date, true)}</span>
         ${ep.duration ? `<span>⏱ ${formatDuration(ep.duration)}</span>` : ''}
       </div>
-      ${desc ? `<div class="modal-desc">${escHtml(desc)}${(ep.description || '').length > 2000 ? '\n\n[…]' : ''}</div>` : ''}
+      ${renderModalDescription(desc)}
       ${renderParsedData(ep)}
+      ${renderSuggestionForm(ep.id)}
       <div class="modal-actions">
         <a class="btn-spotify" href="${escAttr(spotifyUrl)}" target="_blank" rel="noopener">▶ AUF SPOTIFY ÖFFNEN</a>
-        ${websiteUrl ? `<a class="btn-link" href="${escAttr(websiteUrl)}" target="_blank" rel="noopener">↗ WEBSEITE</a>` : ''}
       </div>
     `;
   } catch (err) {
@@ -375,14 +490,4 @@ function escAttr(str) {
     .replace(/>/g,'&gt;')
     .replace(/"/g,'&quot;')
     .replace(/'/g,'&#39;');
-}
-
-function sanitizeHttpUrl(value) {
-  if (!value) return '';
-  try {
-    const url = new URL(String(value));
-    return ['http:', 'https:'].includes(url.protocol) ? url.toString() : '';
-  } catch {
-    return '';
-  }
 }

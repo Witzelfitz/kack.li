@@ -395,6 +395,17 @@ main {
   color: var(--text);
 }
 
+.card-format {
+  align-self: flex-start;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text3);
+  border: 1px solid var(--border2);
+  padding: 2px 7px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .card-film {
   font-size: 11px;
   color: var(--accent);
@@ -528,6 +539,19 @@ main {
 
 .modal-body { padding: 32px; }
 
+.modal-format {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  margin-bottom: 12px;
+  border: 1px solid var(--border2);
+  color: var(--text3);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
 .modal-film {
   font-size: 13px;
   color: var(--accent);
@@ -572,14 +596,161 @@ main {
   font-size: 13px;
   color: var(--text2);
   line-height: 1.75;
-  white-space: pre-wrap;
   margin-bottom: 28px;
+}
+
+.modal-desc-preview,
+.modal-desc-rest {
+  white-space: pre-wrap;
+}
+
+.modal-desc-details {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.modal-desc-toggle {
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.modal-desc-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.modal-desc-toggle::before {
+  content: '↓';
+  font-size: 12px;
+}
+
+.modal-desc-details[open] .modal-desc-toggle::before {
+  content: '↑';
+}
+
+.modal-desc-less {
+  display: none;
+}
+
+.modal-desc-details[open] .modal-desc-more {
+  display: none;
+}
+
+.modal-desc-details[open] .modal-desc-less {
+  display: inline;
+}
+
+.modal-desc-rest {
+  padding-top: 14px;
 }
 
 .modal-actions {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.suggestion-box {
+  margin-bottom: 28px;
+  padding: 18px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+}
+
+.suggestion-copy {
+  font-size: 12px;
+  color: var(--text3);
+  line-height: 1.6;
+  margin-bottom: 14px;
+}
+
+.suggestion-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.suggestion-row {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.suggestion-select,
+.suggestion-input,
+.suggestion-note {
+  width: 100%;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border2);
+  font-family: var(--font);
+  font-size: 13px;
+  padding: 11px 12px;
+  outline: none;
+}
+
+.suggestion-select:focus,
+.suggestion-input:focus,
+.suggestion-note:focus {
+  border-color: var(--accent);
+}
+
+.suggestion-note {
+  resize: vertical;
+  min-height: 88px;
+  line-height: 1.5;
+}
+
+.suggestion-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.btn-suggest {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  font-family: var(--font);
+  font-size: 12px;
+  padding: 10px 16px;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  transition: all 0.15s;
+}
+
+.btn-suggest:hover:not(:disabled) {
+  background: rgba(233,0,20,0.08);
+}
+
+.btn-suggest:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.suggestion-status {
+  font-size: 12px;
+  color: var(--text3);
+  min-height: 1.2em;
+}
+
+.suggestion-status.success {
+  color: var(--accent);
+}
+
+.suggestion-status.error {
+  color: #f08f8f;
 }
 
 /* ── Parsed Data ─────────────────────────────────────────────────────────────── */
@@ -720,4 +891,5 @@ main {
   .logo-tag  { display: none; }
   main { padding: 16px; }
   .episode-grid { grid-template-columns: 1fr; }
+  .suggestion-row { grid-template-columns: 1fr; }
 }
