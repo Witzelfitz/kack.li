@@ -296,12 +296,13 @@ function renderSuggestionForm(episodeId) {
   return `
     <div class="suggestion-box">
       <div class="parsed-label">COMMUNITY-VORSCHLAG</div>
-      <p class="suggestion-copy">Gäste oder Themen vorschlagen. Neue Einträge werden gesammelt und erst nach Prüfung übernommen.</p>
+      <p class="suggestion-copy">Gäste, Themen oder Filme vorschlagen. Neue Einträge werden gesammelt und erst nach Prüfung übernommen.</p>
       <form class="suggestion-form" data-episode-id="${episodeId}">
         <div class="suggestion-row">
           <select class="suggestion-select" name="type" aria-label="Vorschlagstyp">
             <option value="guest">Gast</option>
             <option value="topic">Thema</option>
+            <option value="film">Film</option>
           </select>
           <input class="suggestion-input" type="text" name="value" maxlength="120" placeholder="Vorschlag eingeben" required>
         </div>

@@ -131,6 +131,7 @@ async function initDb() {
     'guests_json TEXT',
     'topics_json TEXT',
     'film_title TEXT',
+    'manual_film_title TEXT',
     'format_name TEXT',
     'manual_guests_json TEXT',
     'manual_topics_json TEXT',
@@ -243,11 +244,16 @@ function getMergedTopics(ep) {
   return mergeStringArrays(tryJson(ep?.topics_json), tryJson(ep?.manual_topics_json));
 }
 
+function getEffectiveFilmTitle(ep) {
+  return normalizeFilmTitle(ep?.manual_film_title) || normalizeFilmTitle(ep?.film_title);
+}
+
 function mergeEpisodeCommunityData(ep) {
   if (!ep) return null;
   return {
     ...ep,
     format_name: ep.format_name || detectEpisodeFormat(ep.title),
+    film_title: getEffectiveFilmTitle(ep),
     guests_json: JSON.stringify(getMergedGuests(ep)),
     topics_json: JSON.stringify(getMergedTopics(ep)),
   };
@@ -285,7 +291,7 @@ function sanitizeHttpUrl(value, base = null) {
 function serializeEpisode(ep) {
   if (!ep) return null;
   const merged = mergeEpisodeCommunityData(ep);
-  const { manual_guests_json, manual_topics_json, ...publicEpisode } = merged;
+  const { manual_film_title, manual_guests_json, manual_topics_json, ...publicEpisode } = merged;
   return {
     ...publicEpisode,
     audio_url: sanitizeHttpUrl(publicEpisode.audio_url, RSS_URL),
@@ -491,9 +497,9 @@ app.get('/api/episodes', (req, res) => {
 
   let where = '1=1', params = [];
   if (q?.trim()) {
-    where += ' AND (title LIKE ? OR description LIKE ? OR format_name LIKE ?)';
+    where += ' AND (title LIKE ? OR description LIKE ? OR format_name LIKE ? OR film_title LIKE ? OR manual_film_title LIKE ?)';
     const t = `%${q.trim()}%`;
-    params.push(t, t, t);
+    params.push(t, t, t, t, t);
   }
   if (guest?.trim()) {
     where += ' AND (guests_json LIKE ? OR manual_guests_json LIKE ?)';
@@ -576,8 +582,8 @@ app.post('/api/episodes/:id/suggestions', suggestionLimiter, (req, res) => {
   if (!Number.isInteger(episodeId) || episodeId <= 0) {
     return res.status(400).json({ error: 'Ungültige Episode.' });
   }
-  if (!['guest', 'topic'].includes(suggestionType)) {
-    return res.status(400).json({ error: 'Ungültiger Vorschlagstyp. Erlaubt sind nur guest oder topic.' });
+  if (!['guest', 'topic', 'film'].includes(suggestionType)) {
+    return res.status(400).json({ error: 'Ungültiger Vorschlagstyp. Erlaubt sind guest, topic oder film.' });
   }
   if (value.length < 2 || value.length > 120) {
     return res.status(400).json({ error: 'Der Vorschlag muss zwischen 2 und 120 Zeichen lang sein.' });
@@ -587,14 +593,22 @@ app.post('/api/episodes/:id/suggestions', suggestionLimiter, (req, res) => {
   }
 
   const ep = dbGet(
-    'SELECT id, title, guests_json, manual_guests_json, topics_json, manual_topics_json FROM episodes WHERE id = ?',
+    `SELECT id, title, film_title, manual_film_title,
+            guests_json, manual_guests_json, topics_json, manual_topics_json
+     FROM episodes WHERE id = ?`,
     [episodeId]
   );
   if (!ep) return res.status(404).json({ error: 'Episode nicht gefunden.' });
 
-  const mergedValues = suggestionType === 'guest' ? getMergedGuests(ep) : getMergedTopics(ep);
-  if (stringsInclude(mergedValues, value)) {
-    return res.status(409).json({ error: 'Dieser Vorschlag ist bereits übernommen.' });
+  if (suggestionType === 'film') {
+    if (normalizeText(getEffectiveFilmTitle(ep)).toLowerCase() === value.toLowerCase()) {
+      return res.status(409).json({ error: 'Dieser Filmvorschlag ist bereits übernommen.' });
+    }
+  } else {
+    const mergedValues = suggestionType === 'guest' ? getMergedGuests(ep) : getMergedTopics(ep);
+    if (stringsInclude(mergedValues, value)) {
+      return res.status(409).json({ error: 'Dieser Vorschlag ist bereits übernommen.' });
+    }
   }
 
   const pending = dbGet(
@@ -692,14 +706,18 @@ app.post('/api/suggestions/:id/review', requireAdmin, (req, res) => {
   const reviewedAt = new Date().toISOString();
   if (action === 'approve') {
     const ep = dbGet(
-      'SELECT id, manual_guests_json, manual_topics_json FROM episodes WHERE id = ?',
+      'SELECT id, manual_film_title, manual_guests_json, manual_topics_json FROM episodes WHERE id = ?',
       [suggestion.episode_id]
     );
     if (!ep) return res.status(404).json({ error: 'Episode nicht gefunden.' });
 
-    const column = suggestion.suggestion_type === 'guest' ? 'manual_guests_json' : 'manual_topics_json';
-    const merged = mergeStringArrays(tryJson(ep[column]), [suggestion.value]);
-    dbRun(`UPDATE episodes SET ${column} = ? WHERE id = ?`, [JSON.stringify(merged), suggestion.episode_id]);
+    if (suggestion.suggestion_type === 'film') {
+      dbRun('UPDATE episodes SET manual_film_title = ? WHERE id = ?', [suggestion.value, suggestion.episode_id]);
+    } else {
+      const column = suggestion.suggestion_type === 'guest' ? 'manual_guests_json' : 'manual_topics_json';
+      const merged = mergeStringArrays(tryJson(ep[column]), [suggestion.value]);
+      dbRun(`UPDATE episodes SET ${column} = ? WHERE id = ?`, [JSON.stringify(merged), suggestion.episode_id]);
+    }
   }
 
   dbRun(
@@ -754,7 +772,10 @@ app.post('/api/parse-films', requireAdmin, async (req, res) => {
   const force = req.query.force === '1';
   const episodes = force
     ? dbAll('SELECT id FROM episodes ORDER BY pub_ts ASC')
-    : dbAll(`SELECT id FROM episodes WHERE film_title IS NULL OR TRIM(film_title) = '' ORDER BY pub_ts ASC`);
+    : dbAll(`SELECT id FROM episodes
+             WHERE (film_title IS NULL OR TRIM(film_title) = '')
+               AND (manual_film_title IS NULL OR TRIM(manual_film_title) = '')
+             ORDER BY pub_ts ASC`);
 
   log('parse-films', `Gestartet: ${episodes.length} Episoden (force=${force})`, { queued: episodes.length, force });
   res.json({ ok: true, queued: episodes.length });
