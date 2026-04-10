@@ -434,6 +434,11 @@ async function parseEpisode(ep) {
   };
 }
 
+function saveFilmTitle(id, filmTitle) {
+  dbRun('UPDATE episodes SET film_title = ? WHERE id = ?', [filmTitle, id]);
+  saveDb();
+}
+
 function saveParsed(id, data) {
   dbRun(
     `UPDATE episodes SET film_title=?, chapters_json=?, guests_json=?, topics_json=?, parsed_at=?, parse_version=? WHERE id=?`,
@@ -742,6 +747,41 @@ app.post('/api/episodes/:id/parse', requireAdmin, async (req, res) => {
     log('parse', `Fehler Episode #${ep.id}: ${err.message}`, { episode_id: ep.id }, 'error');
     res.status(500).json({ error: err.message });
   }
+});
+
+app.post('/api/parse-films', requireAdmin, async (req, res) => {
+  if (!openai) return res.status(503).json({ error: 'OPENAI_API_KEY nicht gesetzt' });
+  const force = req.query.force === '1';
+  const episodes = force
+    ? dbAll('SELECT id FROM episodes ORDER BY pub_ts ASC')
+    : dbAll(`SELECT id FROM episodes WHERE film_title IS NULL OR TRIM(film_title) = '' ORDER BY pub_ts ASC`);
+
+  log('parse-films', `Gestartet: ${episodes.length} Episoden (force=${force})`, { queued: episodes.length, force });
+  res.json({ ok: true, queued: episodes.length });
+
+  (async () => {
+    let done = 0, errors = 0;
+    for (const { id } of episodes) {
+      const ep = dbGet('SELECT * FROM episodes WHERE id = ?', [id]);
+      try {
+        const filmTitle = await extractFilmTitle(ep);
+        saveFilmTitle(id, filmTitle);
+        done++;
+        log('parse-films', `${done}/${episodes.length} – ${ep.title?.slice(0, 50)}`, {
+          episode_id: id,
+          done,
+          total: episodes.length,
+          film_title: filmTitle,
+        });
+      } catch (err) {
+        errors++;
+        log('parse-films', `Fehler #${id}: ${err.message}`, { episode_id: id }, 'error');
+      }
+      await new Promise(r => setTimeout(r, 300));
+    }
+    log('parse-films', `Abgeschlossen: ${done} OK, ${errors} Fehler`, { done, errors });
+    saveDb();
+  })();
 });
 
 app.post('/api/parse-all', requireAdmin, async (req, res) => {

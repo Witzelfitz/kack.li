@@ -260,6 +260,36 @@
           <span class="token-hint">Wird nur lokal im Browser gespeichert und ausschließlich für Anfragen an diese API verwendet.</span>
         </div>
 
+        <!-- /api/suggestions -->
+        <div class="ep" id="ep-suggestions">
+          <div class="ep-head" data-toggle-ep="ep-suggestions">
+            <span class="method get">GET</span>
+            <span class="ep-path">/api/suggestions</span>
+            <span class="ep-summary">Community-Vorschläge mit Status</span>
+            <span class="badge admin">admin</span>
+            <span class="chevron">▶</span>
+          </div>
+          <div class="ep-body">
+            <div class="ep-desc">Gibt eingereichte Community-Vorschläge zurück. Standardmäßig siehst du <code style="font-family:var(--font-mono);font-size:11px;background:var(--bg3);padding:1px 5px">pending</code>. Mit Filtern kannst du auch bereits freigegebene oder abgelehnte Vorschläge ansehen.</div>
+            <table class="params">
+              <tr><th>Parameter</th><th>Typ</th><th>Beschreibung</th><th>Wert</th></tr>
+              <tr><td>status <span class="opt">optional</span></td><td>string</td><td><code>pending</code>, <code>approved</code> oder <code>rejected</code></td><td><input class="param-input" data-ep="ep-suggestions" data-param="status" placeholder="pending" value="pending"></td></tr>
+              <tr><td>type <span class="opt">optional</span></td><td>string</td><td><code>guest</code> oder <code>topic</code></td><td><input class="param-input" data-ep="ep-suggestions" data-param="type" placeholder="guest oder topic"></td></tr>
+              <tr><td>episode_id <span class="opt">optional</span></td><td>integer</td><td>Nur Vorschläge für eine bestimmte Episode</td><td><input class="param-input" data-ep="ep-suggestions" data-param="episode_id" placeholder="z.B. 348"></td></tr>
+              <tr><td>limit <span class="opt">optional</span></td><td>integer</td><td>Anzahl Einträge (max. 500)</td><td><input class="param-input" data-ep="ep-suggestions" data-param="limit" placeholder="100" value="20"></td></tr>
+            </table>
+            <div class="try-bar">
+              <span class="try-url" id="url-ep-suggestions"></span>
+              <button class="btn-copy" data-copy-el="url-ep-suggestions">📋 Kopieren</button>
+              <button class="btn-run" data-run-ep="ep-suggestions" data-run-admin="1">▶ Ausführen</button>
+            </div>
+            <div class="response-panel">
+              <div class="response-meta" id="meta-ep-suggestions"><span class="status-pend">— bereit</span></div>
+              <div class="response-body empty" id="res-ep-suggestions">Token eingeben und „Ausführen" klicken.</div>
+            </div>
+          </div>
+        </div>
+
         <!-- /api/logs -->
         <div class="ep" id="ep-logs">
           <div class="ep-head" data-toggle-ep="ep-logs">
@@ -273,7 +303,7 @@
             <div class="ep-desc">Gibt die letzten Server-Logs zurück (Sync, Parse, Cron, Boot). Max. 500 Einträge.</div>
             <table class="params">
               <tr><th>Parameter</th><th>Typ</th><th>Beschreibung</th><th>Wert</th></tr>
-              <tr><td>event <span class="opt">optional</span></td><td>string</td><td>Filter: sync, parse, parse-all, cron, boot</td><td><input class="param-input" data-ep="ep-logs" data-param="event" placeholder="z.B. cron"></td></tr>
+              <tr><td>event <span class="opt">optional</span></td><td>string</td><td>Filter: sync, parse, parse-all, parse-films, cron, boot</td><td><input class="param-input" data-ep="ep-logs" data-param="event" placeholder="z.B. parse-films"></td></tr>
               <tr><td>level <span class="opt">optional</span></td><td>string</td><td>Filter: info, error</td><td><input class="param-input" data-ep="ep-logs" data-param="level" placeholder="z.B. error"></td></tr>
               <tr><td>limit <span class="opt">optional</span></td><td>integer</td><td>Anzahl Einträge (max. 500)</td><td><input class="param-input" data-ep="ep-logs" data-param="limit" placeholder="100" value="20"></td></tr>
             </table>
@@ -338,6 +368,33 @@
             </div>
           </div>
         </div>
+
+        <!-- /api/parse-films -->
+        <div class="ep" id="ep-parse-films">
+          <div class="ep-head" data-toggle-ep="ep-parse-films">
+            <span class="method post">POST</span>
+            <span class="ep-path">/api/parse-films</span>
+            <span class="ep-summary">Nur Filmtitel mit OpenAI abgleichen</span>
+            <span class="badge admin">admin</span>
+            <span class="chevron">▶</span>
+          </div>
+          <div class="ep-body">
+            <div class="ep-desc">Berechnet ausschließlich <code style="font-family:var(--font-mono);font-size:11px;background:var(--bg3);padding:1px 5px">film_title</code> neu. Ohne Parameter werden nur Episoden ohne Filmtitel bearbeitet. Mit <code style="font-family:var(--font-mono);font-size:11px;background:var(--bg3);padding:1px 5px">?force=1</code> werden alle Episoden erneut nur auf Filmtitel geprüft.</div>
+            <table class="params">
+              <tr><th>Parameter</th><th>Typ</th><th>Beschreibung</th><th>Wert</th></tr>
+              <tr><td>force <span class="opt">optional</span></td><td>1</td><td>Alle Episoden erneut nur auf Filmtitel prüfen</td><td><input class="param-input" data-ep="ep-parse-films" data-param="force" placeholder="1 oder leer"></td></tr>
+            </table>
+            <div class="try-bar">
+              <span class="try-url" id="url-ep-parse-films"></span>
+              <button class="btn-copy" data-copy-el="url-ep-parse-films">📋 Kopieren</button>
+              <button class="btn-run" data-run-ep="ep-parse-films" data-run-admin="1">▶ Ausführen</button>
+            </div>
+            <div class="response-panel">
+              <div class="response-meta" id="meta-ep-parse-films"><span class="status-pend">— bereit</span></div>
+              <div class="response-body empty" id="res-ep-parse-films">Token eingeben und „Ausführen" klicken.</div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </main>
@@ -353,9 +410,11 @@
       'ep-episode-id': { method: 'GET',  path: '/api/episodes/:id' },
       'ep-guests':     { method: 'GET',  path: '/api/guests' },
       'ep-topics':     { method: 'GET',  path: '/api/topics' },
+      'ep-suggestions':{ method: 'GET',  path: '/api/suggestions' },
       'ep-logs':       { method: 'GET',  path: '/api/logs' },
       'ep-sync':       { method: 'POST', path: '/api/sync' },
       'ep-parse-all':  { method: 'POST', path: '/api/parse-all' },
+      'ep-parse-films':{ method: 'POST', path: '/api/parse-films' },
     };
 
     // ── Build URLs ────────────────────────────────────────────────────────────
@@ -488,7 +547,7 @@
       if (input) { buildUrl(input.dataset.ep); return; }
 
       if (event.target.id === 'adminToken') {
-        ['ep-logs', 'ep-sync', 'ep-parse-all'].forEach(buildUrl);
+        ['ep-suggestions', 'ep-logs', 'ep-sync', 'ep-parse-all', 'ep-parse-films'].forEach(buildUrl);
       }
     });
 
