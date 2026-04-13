@@ -76,6 +76,16 @@ Dann wird bei jedem neuen Vorschlag eine Telegram-Nachricht mit
 
 als Klick-Buttons gesendet.
 
+## Cluster-Verhalten bei Approve
+
+Beim Freigeben wird automatisch in bestehende Cluster gemappt:
+
+- **Gast**: Alias wird auf kanonischen Gast normalisiert (z. B. „Dag von SDP" → „Dag-Alexis Kopplin").
+- **Thema**: Synonyme werden auf kanonisches Thema gemappt (z. B. „Hörermails" → „Community-Feedback").
+- **Film/Werk**: Titel wird auf bestehenden Work-Cluster normalisiert (kanonische Schreibweise).
+
+Wenn ein Vorschlag bereits im Cluster der Episode enthalten ist, wird kein redundanter zusätzlicher Eintrag geschrieben.
+
 ## Moderationsregeln
 
 1. **Approve** nur bei klarer, sachlich plausibler Ergänzung.

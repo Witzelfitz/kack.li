@@ -317,6 +317,8 @@ export function createPublicController({
 
       for (const row of rows) {
         const merged = mergeStringArrays(tryJson(row.guests_json), tryJson(row.manual_guests_json));
+        const seenInEpisode = new Set();
+
         for (const rawGuest of merged) {
           const normalized = normalizeGuestEntry(rawGuest);
           if (!normalized) continue;
@@ -331,7 +333,10 @@ export function createPublicController({
           }
 
           const entry = guestMap.get(normalized.id);
-          entry.count += 1;
+          if (!seenInEpisode.has(normalized.id)) {
+            entry.count += 1;
+            seenInEpisode.add(normalized.id);
+          }
 
           if (normalizeText(rawGuest).toLowerCase() !== normalizeText(normalized.name).toLowerCase()) {
             entry.aliases.add(normalizeText(rawGuest));
@@ -374,6 +379,8 @@ export function createPublicController({
 
       for (const row of rows) {
         const merged = mergeStringArrays(tryJson(row.topics_json), tryJson(row.manual_topics_json));
+        const seenInEpisode = new Set();
+
         for (const rawTopic of merged) {
           const normalized = normalizeTopicEntry(rawTopic);
           if (!normalized) continue;
@@ -388,7 +395,10 @@ export function createPublicController({
           }
 
           const entry = topicMap.get(normalized.id);
-          entry.count += 1;
+          if (!seenInEpisode.has(normalized.id)) {
+            entry.count += 1;
+            seenInEpisode.add(normalized.id);
+          }
 
           if (normalizeText(rawTopic).toLowerCase() !== normalizeText(normalized.name).toLowerCase()) {
             entry.aliases.add(normalizeText(rawTopic));

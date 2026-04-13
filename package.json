@@ -11,7 +11,8 @@
     "test:format-coverage": "node scripts/check-format-coverage.mjs",
     "test:guest-normalization": "node tests/guest-normalization.test.mjs",
     "test:topic-normalization": "node tests/topic-normalization.test.mjs",
-    "test:works-entity": "node tests/works-entity.test.mjs"
+    "test:works-entity": "node tests/works-entity.test.mjs",
+    "test:suggestion-clusters": "node tests/suggestions-cluster-approve.test.mjs"
   },
   "dependencies": {
     "dotenv": "^17.4.1",

@@ -4,6 +4,10 @@ export function createSuggestionsService({
   tryJson,
   mergeStringArrays,
   normalizeText,
+  normalizeGuestEntry,
+  normalizeTopicEntry,
+  normalizeFilmTitle,
+  getWorkIdFromFilmTitle,
   getEffectiveFilmTitle,
   log,
   saveDb,
@@ -78,6 +82,44 @@ export function createSuggestionsService({
     return suggestions.listPending(limit).map(normalizeSuggestionRow);
   }
 
+  function hasGuestCluster(ep, value) {
+    const target = normalizeGuestEntry(value);
+    if (!target) return false;
+
+    const mergedGuests = mergeStringArrays(tryJson(ep?.guests_json), tryJson(ep?.manual_guests_json));
+    return mergedGuests.some((guest) => normalizeGuestEntry(guest)?.id === target.id);
+  }
+
+  function hasTopicCluster(ep, value) {
+    const target = normalizeTopicEntry(value);
+    if (!target) return false;
+
+    const mergedTopics = mergeStringArrays(tryJson(ep?.topics_json), tryJson(ep?.manual_topics_json));
+    return mergedTopics.some((topic) => normalizeTopicEntry(topic)?.id === target.id);
+  }
+
+  function resolveCanonicalFilmTitle(value) {
+    const normalized = normalizeFilmTitle(value);
+    if (!normalized) return null;
+
+    const workId = getWorkIdFromFilmTitle(normalized);
+    if (!workId) return normalized;
+
+    const rows = episodes.worksRows?.() || [];
+    const counts = new Map();
+
+    for (const row of rows) {
+      const candidate = normalizeFilmTitle(getEffectiveFilmTitle(row));
+      if (!candidate) continue;
+      if (getWorkIdFromFilmTitle(candidate) !== workId) continue;
+      counts.set(candidate, (counts.get(candidate) || 0) + 1);
+    }
+
+    if (!counts.size) return normalized;
+
+    return Array.from(counts.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'de'))[0][0];
+  }
+
   function reviewSuggestion({ suggestionId, action, reviewNote = '', reviewedBy = 'unknown', reviewSource = 'admin-api' }) {
     const suggestion = suggestions.getById(suggestionId);
     if (!suggestion) {
@@ -92,11 +134,22 @@ export function createSuggestionsService({
       if (!ep) return { ok: false, status: 404, error: 'Episode nicht gefunden.' };
 
       if (suggestion.suggestion_type === 'film') {
-        episodes.updateManualFilmTitle(suggestion.episode_id, suggestion.value);
+        const canonicalFilm = resolveCanonicalFilmTitle(suggestion.value);
+        if (canonicalFilm) {
+          episodes.updateManualFilmTitle(suggestion.episode_id, canonicalFilm);
+        }
+      } else if (suggestion.suggestion_type === 'guest') {
+        const canonicalGuest = normalizeGuestEntry(suggestion.value)?.name || suggestion.value;
+        if (!hasGuestCluster(ep, canonicalGuest)) {
+          const merged = mergeStringArrays(tryJson(ep.manual_guests_json), [canonicalGuest]);
+          episodes.updateManualArray('manual_guests_json', suggestion.episode_id, merged);
+        }
       } else {
-        const column = suggestion.suggestion_type === 'guest' ? 'manual_guests_json' : 'manual_topics_json';
-        const merged = mergeStringArrays(tryJson(ep[column]), [suggestion.value]);
-        episodes.updateManualArray(column, suggestion.episode_id, merged);
+        const canonicalTopic = normalizeTopicEntry(suggestion.value)?.name || suggestion.value;
+        if (!hasTopicCluster(ep, canonicalTopic)) {
+          const merged = mergeStringArrays(tryJson(ep.manual_topics_json), [canonicalTopic]);
+          episodes.updateManualArray('manual_topics_json', suggestion.episode_id, merged);
+        }
       }
     }
 
@@ -138,15 +191,16 @@ export function createSuggestionsService({
 
   function isSuggestionAlreadyMerged(ep, suggestionType, value) {
     if (suggestionType === 'film') {
+      const current = getWorkIdFromFilmTitle(getEffectiveFilmTitle(ep));
+      const proposed = getWorkIdFromFilmTitle(value);
+      if (current && proposed) return current === proposed;
       return normalizeText(getEffectiveFilmTitle(ep)).toLowerCase() === normalizeText(value).toLowerCase();
     }
     if (suggestionType === 'guest') {
-      const mergedGuests = mergeStringArrays(tryJson(ep?.guests_json), tryJson(ep?.manual_guests_json));
-      return mergedGuests.some((guest) => normalizeText(guest).toLowerCase() === normalizeText(value).toLowerCase());
+      return hasGuestCluster(ep, value);
     }
 
-    const mergedTopics = mergeStringArrays(tryJson(ep?.topics_json), tryJson(ep?.manual_topics_json));
-    return mergedTopics.some((topic) => normalizeText(topic).toLowerCase() === normalizeText(value).toLowerCase());
+    return hasTopicCluster(ep, value);
   }
 
   return {
