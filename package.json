@@ -12,11 +12,7 @@
     "test:guest-normalization": "node tests/guest-normalization.test.mjs",
     "test:topic-normalization": "node tests/topic-normalization.test.mjs",
     "test:works-entity": "node tests/works-entity.test.mjs",
-    "test:suggestion-clusters": "node tests/suggestions-cluster-approve.test.mjs",
-    "perf:k6:smoke": "bash scripts/run-k6.sh smoke",
-    "perf:k6:load": "bash scripts/run-k6.sh load",
-    "perf:k6:stress": "bash scripts/run-k6.sh stress",
-    "perf:k6:soak": "bash scripts/run-k6.sh soak"
+    "test:suggestion-clusters": "node tests/suggestions-cluster-approve.test.mjs"
   },
   "dependencies": {
     "dotenv": "^17.4.1",
