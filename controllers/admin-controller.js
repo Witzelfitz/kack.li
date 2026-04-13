@@ -122,6 +122,30 @@ export function createAdminController({
       }
     },
 
+    async getDataQuality(req, res) {
+      const limitRaw = req.query.limit;
+      const limit = Math.min(Math.max(parseInt(limitRaw, 10) || 25, 1), 200);
+      try {
+        const report = await episodesService.getDataQualityReport(limit);
+        return res.json(report);
+      } catch (err) {
+        log('quality', `Fehler beim Qualitätsreport: ${err.message}`, null, 'error');
+        return res.status(500).json({ ok: false, error: err.message });
+      }
+    },
+
+    async repairDataQuality(req, res) {
+      const limitRaw = req.query.limit;
+      const limit = Math.min(Math.max(parseInt(limitRaw, 10) || 2000, 1), 10000);
+      try {
+        const result = await episodesService.repairDataQuality(limit);
+        return res.json({ ok: true, ...result });
+      } catch (err) {
+        log('quality', `Fehler im Reparaturlauf: ${err.message}`, null, 'error');
+        return res.status(500).json({ ok: false, error: err.message });
+      }
+    },
+
     async parseEpisode(req, res) {
       if (!parseService.enabled) return res.status(503).json({ error: 'OPENAI_API_KEY nicht gesetzt' });
 

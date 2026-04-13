@@ -163,12 +163,19 @@ export function createPublicController({
     },
 
     getStatus(_req, res) {
+      const quality = episodes.qualityCounts();
       return res.json({
         episodes: episodes.totalCount(),
         parsed: episodes.parsedCount(parseVersion),
         last_sync: meta.get('last_sync'),
         openai: openaiEnabled,
         parse_version: parseVersion,
+        quality: {
+          missing_audio_url: quality.missing_audio || 0,
+          missing_duration: quality.missing_duration || 0,
+          target_missing_audio_url: 0,
+          target_missing_duration: 0,
+        },
       });
     },
 

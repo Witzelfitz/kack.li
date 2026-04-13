@@ -126,6 +126,47 @@ export function createRepositories({ dbAll, dbGet, dbRun }) {
         dbGet('SELECT COUNT(*) as c FROM episodes WHERE COALESCE(parse_version, 0) >= ?', [parseVersion])?.c || 0
       );
     },
+
+    qualityCounts() {
+      return (
+        dbGet(
+          `SELECT
+             SUM(CASE WHEN audio_url IS NULL OR TRIM(audio_url) = '' THEN 1 ELSE 0 END) AS missing_audio,
+             SUM(CASE WHEN duration IS NULL OR TRIM(duration) = '' THEN 1 ELSE 0 END) AS missing_duration,
+             COUNT(*) AS total
+           FROM episodes`
+        ) || { missing_audio: 0, missing_duration: 0, total: 0 }
+      );
+    },
+
+    missingMediaRows(limit = 1000) {
+      return dbAll(
+        `SELECT id, guid, title, audio_url, duration, chapters_json
+         FROM episodes
+         WHERE audio_url IS NULL OR TRIM(audio_url) = '' OR duration IS NULL OR TRIM(duration) = ''
+         ORDER BY pub_ts DESC, id DESC
+         LIMIT ?`,
+        [limit]
+      );
+    },
+
+    updateMediaFields(id, { audioUrl, duration }) {
+      const sets = [];
+      const params = [];
+
+      if (audioUrl !== undefined) {
+        sets.push('audio_url = ?');
+        params.push(audioUrl);
+      }
+      if (duration !== undefined) {
+        sets.push('duration = ?');
+        params.push(duration);
+      }
+      if (!sets.length) return;
+
+      params.push(id);
+      dbRun(`UPDATE episodes SET ${sets.join(', ')} WHERE id = ?`, params);
+    },
   };
 
   const meta = {
