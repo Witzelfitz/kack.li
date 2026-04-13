@@ -320,9 +320,9 @@ Beispiel:
 - `https://kack.li/?topic=star-wars&q=rebel&page=2`
 
 ### Episode direkt als Popup öffnen
-- `https://kack.li/?id=290`
+- `https://kack.li/?title=burn-after-reading-gesetz-der-dummheit`
 
-Das Frontend öffnet direkt das Modal zur Episode-ID.
+Das Frontend öffnet direkt das Modal über den Titel-Slug.
 
 ---
 
