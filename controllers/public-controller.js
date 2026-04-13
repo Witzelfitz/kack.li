@@ -15,31 +15,89 @@ export function createPublicController({
   log,
   saveDb,
 }) {
+  function validationError(res, details = []) {
+    return res.status(400).json({
+      code: 'VALIDATION_ERROR',
+      message: 'Ungültige Query-Parameter.',
+      details,
+    });
+  }
+
+  function parseIntegerField(value, fieldName, { min = 0, max = Number.MAX_SAFE_INTEGER } = {}) {
+    if (value === undefined) return { ok: true, provided: false, value: null };
+    const raw = String(value).trim();
+    if (!/^[+-]?\d+$/.test(raw)) {
+      return { ok: false, error: { field: fieldName, issue: 'must_be_integer' } };
+    }
+    const num = Number.parseInt(raw, 10);
+    if (num < min || num > max) {
+      return { ok: false, error: { field: fieldName, issue: 'out_of_range', min, max } };
+    }
+    return { ok: true, provided: true, value: num };
+  }
+
+  function parseStringFilter(value, fieldName, { maxLength = 120 } = {}) {
+    if (value === undefined) return { ok: true, provided: false, value: '' };
+    if (Array.isArray(value)) {
+      return { ok: false, error: { field: fieldName, issue: 'must_be_string' } };
+    }
+    const normalized = String(value).trim();
+    if (normalized.length > maxLength) {
+      return { ok: false, error: { field: fieldName, issue: 'too_long', maxLength } };
+    }
+    return { ok: true, provided: true, value: normalized };
+  }
+
   return {
     listEpisodes(req, res) {
-      const { q, guest, topic, format, limit = 24, offset = 0 } = req.query;
-      const lim = Math.min(parseInt(limit, 10) || 24, 100);
-      const off = parseInt(offset, 10) || 0;
+      const details = [];
+
+      const limitResult = parseIntegerField(req.query.limit, 'limit', { min: 1, max: 100 });
+      if (!limitResult.ok) details.push(limitResult.error);
+
+      const offsetResult = parseIntegerField(req.query.offset, 'offset', { min: 0, max: Number.MAX_SAFE_INTEGER });
+      if (!offsetResult.ok) details.push(offsetResult.error);
+
+      const qResult = parseStringFilter(req.query.q, 'q', { maxLength: 200 });
+      if (!qResult.ok) details.push(qResult.error);
+
+      const guestResult = parseStringFilter(req.query.guest, 'guest', { maxLength: 120 });
+      if (!guestResult.ok) details.push(guestResult.error);
+
+      const topicResult = parseStringFilter(req.query.topic, 'topic', { maxLength: 120 });
+      if (!topicResult.ok) details.push(topicResult.error);
+
+      const formatResult = parseStringFilter(req.query.format, 'format', { maxLength: 120 });
+      if (!formatResult.ok) details.push(formatResult.error);
+
+      if (details.length) return validationError(res, details);
+
+      const lim = limitResult.provided ? limitResult.value : 24;
+      const off = offsetResult.provided ? offsetResult.value : 0;
+      const q = qResult.value;
+      const guest = guestResult.value;
+      const topic = topicResult.value;
+      const format = formatResult.value;
 
       let where = '1=1';
       const params = [];
 
-      if (q?.trim()) {
+      if (q) {
         where += ' AND (title LIKE ? OR description LIKE ? OR format_name LIKE ? OR film_title LIKE ? OR manual_film_title LIKE ?)';
-        const t = `%${q.trim()}%`;
+        const t = `%${q}%`;
         params.push(t, t, t, t, t);
       }
-      if (guest?.trim()) {
+      if (guest) {
         where += ' AND (guests_json LIKE ? OR manual_guests_json LIKE ?)';
-        params.push(`%${guest.trim()}%`, `%${guest.trim()}%`);
+        params.push(`%${guest}%`, `%${guest}%`);
       }
-      if (topic?.trim()) {
+      if (topic) {
         where += ' AND (topics_json LIKE ? OR manual_topics_json LIKE ?)';
-        params.push(`%${topic.trim()}%`, `%${topic.trim()}%`);
+        params.push(`%${topic}%`, `%${topic}%`);
       }
-      if (format?.trim()) {
+      if (format) {
         where += ' AND format_name = ?';
-        params.push(format.trim());
+        params.push(format);
       }
 
       const total = episodes.count(where, params);

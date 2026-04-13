@@ -155,14 +155,14 @@
             <span class="chevron">▶</span>
           </div>
           <div class="ep-body">
-            <div class="ep-desc">Paginierte Episodenliste. Unterstützt Volltextsuche sowie Filter nach Gast und Thema.</div>
+            <div class="ep-desc">Paginierte Episodenliste. Unterstützt Volltextsuche sowie Filter nach Gast und Thema.<br><br>Validierung: <code style="font-family:var(--font-mono);font-size:11px;background:var(--bg3);padding:1px 5px">limit</code> muss eine Ganzzahl von 1–100 sein, <code style="font-family:var(--font-mono);font-size:11px;background:var(--bg3);padding:1px 5px">offset</code> eine Ganzzahl ≥ 0. Ungültige Parameter liefern <code style="font-family:var(--font-mono);font-size:11px;background:var(--bg3);padding:1px 5px">400</code> mit <code style="font-family:var(--font-mono);font-size:11px;background:var(--bg3);padding:1px 5px">{ code, message, details }</code>.</div>
             <table class="params">
               <tr><th>Parameter</th><th>Typ</th><th>Beschreibung</th><th>Wert</th></tr>
               <tr><td>q <span class="opt">optional</span></td><td>string</td><td>Volltextsuche in Titel &amp; Beschreibung</td><td><input class="param-input" data-ep="ep-episodes" data-param="q" placeholder="z.B. Godzilla"></td></tr>
               <tr><td>guest <span class="opt">optional</span></td><td>string</td><td>Filter nach Gastname</td><td><input class="param-input" data-ep="ep-episodes" data-param="guest" placeholder="z.B. Dag"></td></tr>
               <tr><td>topic <span class="opt">optional</span></td><td>string</td><td>Filter nach Thema</td><td><input class="param-input" data-ep="ep-episodes" data-param="topic" placeholder="z.B. Gaming"></td></tr>
-              <tr><td>limit <span class="opt">optional</span></td><td>integer</td><td>Anzahl Ergebnisse (max. 100)</td><td><input class="param-input" data-ep="ep-episodes" data-param="limit" placeholder="24" value="5"></td></tr>
-              <tr><td>offset <span class="opt">optional</span></td><td>integer</td><td>Offset für Paginierung</td><td><input class="param-input" data-ep="ep-episodes" data-param="offset" placeholder="0"></td></tr>
+              <tr><td>limit <span class="opt">optional</span></td><td>integer</td><td>Anzahl Ergebnisse (1–100)</td><td><input class="param-input" data-ep="ep-episodes" data-param="limit" placeholder="24" value="5"></td></tr>
+              <tr><td>offset <span class="opt">optional</span></td><td>integer</td><td>Offset für Paginierung (≥ 0)</td><td><input class="param-input" data-ep="ep-episodes" data-param="offset" placeholder="0"></td></tr>
             </table>
             <div class="try-bar">
               <span class="try-url" id="url-ep-episodes"></span>
