@@ -385,7 +385,7 @@ async function openModal(id) {
     body.innerHTML = `
       <h2 class="modal-title">${escHtml(ep.title)}</h2>
       ${ep.format_name ? `<div class="modal-format">${escHtml(ep.format_name)}</div>` : ''}
-      ${ep.film_title ? `<div class="modal-film">↳ ${escHtml(ep.film_title)}</div>` : ''}
+      ${renderFilmLine(ep)}
       <div class="modal-meta">
         <span>📅 ${formatDate(ep.pub_date, true)}</span>
         ${ep.duration ? `<span>⏱ ${formatDuration(ep.duration)}</span>` : ''}
@@ -403,29 +403,68 @@ async function openModal(id) {
   }
 }
 
+function renderFilmLine(ep) {
+  if (!ep?.film_title) return '';
+
+  const source = String(ep.film_title_source || '').toLowerCase();
+  const label = source === 'community'
+    ? 'Community ergänzt'
+    : source === 'ai'
+      ? 'KI erkannt'
+      : '';
+
+  const sourceClass = source === 'community'
+    ? 'modal-film-source is-community'
+    : 'modal-film-source is-ai';
+
+  return `<div class="modal-film">↳ ${escHtml(ep.film_title)}${label ? ` <span class="${sourceClass}">${escHtml(label)}</span>` : ''}</div>`;
+}
+
 function renderParsedData(ep) {
-  const guests   = getArrayField(ep.guests, ep.guests_json);
+  const mergedGuests = getArrayField(ep.guests, ep.guests_json);
+  const guestsAiRaw = getArrayField(ep.guests_ai, []);
+  const guestsCommunityRaw = getArrayField(ep.guests_community, []);
+  const guestsAi = (guestsAiRaw.length || guestsCommunityRaw.length) ? guestsAiRaw : mergedGuests;
+  const guestsCommunity = (guestsAiRaw.length || guestsCommunityRaw.length) ? guestsCommunityRaw : [];
+  const guests = mergeUniqueArray(guestsAi, guestsCommunity);
+
+  const mergedTopics = getArrayField(ep.topics, ep.topics_json);
+  const topicsAiRaw = getArrayField(ep.topics_ai, []);
+  const topicsCommunityRaw = getArrayField(ep.topics_community, []);
+  const topicsAi = (topicsAiRaw.length || topicsCommunityRaw.length) ? topicsAiRaw : mergedTopics;
+  const topicsCommunity = (topicsAiRaw.length || topicsCommunityRaw.length) ? topicsCommunityRaw : [];
+  const topics = mergeUniqueArray(topicsAi, topicsCommunity);
+
   const chapters = getArrayField(ep.chapters, ep.chapters_json);
-  const topics   = getArrayField(ep.topics, ep.topics_json);
+
   if (!guests.length && !chapters.length && !topics.length) return '';
+
+  const communityGuestKeys = new Set(guestsCommunity.map(toKey));
+  const communityTopicKeys = new Set(topicsCommunity.map(toKey));
 
   let html = '<div class="parsed-data">';
 
   if (guests.length) {
     html += `<div class="parsed-section">
       <div class="parsed-label">GÄSTE</div>
-      <div class="parsed-tags">${guests.map(g =>
-        `<button class="tag tag-guest" data-action="set-filter" data-close-modal="1" data-type="guest" data-value="${escAttr(g)}">${escHtml(g)}</button>`
-      ).join('')}</div>
+      <div class="parsed-tags">${guests.map(g => {
+        const isCommunity = communityGuestKeys.has(toKey(g));
+        const sourceClass = isCommunity ? 'tag-source-community' : 'tag-source-ai';
+        const sourceHint = isCommunity ? 'Community ergänzt' : 'KI erkannt';
+        return `<button class="tag tag-guest ${sourceClass}" title="${escAttr(sourceHint)}" data-action="set-filter" data-close-modal="1" data-type="guest" data-value="${escAttr(g)}">${escHtml(g)}</button>`;
+      }).join('')}</div>
     </div>`;
   }
 
   if (topics.length) {
     html += `<div class="parsed-section">
       <div class="parsed-label">THEMEN</div>
-      <div class="parsed-tags">${topics.map(t =>
-        `<button class="tag tag-topic" data-action="set-filter" data-close-modal="1" data-type="topic" data-value="${escAttr(t)}">${escHtml(t)}</button>`
-      ).join('')}</div>
+      <div class="parsed-tags">${topics.map(t => {
+        const isCommunity = communityTopicKeys.has(toKey(t));
+        const sourceClass = isCommunity ? 'tag-source-community' : 'tag-source-ai';
+        const sourceHint = isCommunity ? 'Community ergänzt' : 'KI erkannt';
+        return `<button class="tag tag-topic ${sourceClass}" title="${escAttr(sourceHint)}" data-action="set-filter" data-close-modal="1" data-type="topic" data-value="${escAttr(t)}">${escHtml(t)}</button>`;
+      }).join('')}</div>
     </div>`;
   }
 
@@ -473,9 +512,32 @@ function tryJson(str) {
   try { const v = JSON.parse(str); return Array.isArray(v) ? v : []; } catch { return []; }
 }
 
-function getArrayField(value, fallbackJson = null) {
+function getArrayField(value, fallback = null) {
   if (Array.isArray(value)) return value;
-  return tryJson(fallbackJson);
+  if (Array.isArray(fallback)) return fallback;
+  return tryJson(fallback);
+}
+
+function toKey(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function mergeUniqueArray(...arrays) {
+  const out = [];
+  const seen = new Set();
+
+  for (const values of arrays) {
+    for (const value of values || []) {
+      const text = String(value || '').trim();
+      if (!text) continue;
+      const key = toKey(text);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(text);
+    }
+  }
+
+  return out;
 }
 
 function formatDate(str, long = false) {
