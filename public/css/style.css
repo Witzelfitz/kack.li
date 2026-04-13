@@ -573,12 +573,14 @@ main {
 }
 
 .modal-film-source.is-community {
-  border-color: rgba(34, 197, 94, 0.4);
-  color: #22c55e;
+  border-color: var(--border2);
+  border-style: dashed;
+  color: var(--text3);
 }
 
-.modal-film-source.is-ai {
+.modal-film-source.is-auto {
   border-color: var(--border2);
+  border-style: solid;
   color: var(--text3);
 }
 
@@ -795,6 +797,41 @@ main {
   margin-bottom: 8px;
 }
 
+.source-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.source-legend-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text3);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.source-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border: 1px solid var(--border2);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text3);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.source-chip-auto {
+  border-style: solid;
+}
+
+.source-chip-community {
+  border-style: dashed;
+}
+
 .parsed-tags {
   display: flex;
   flex-wrap: wrap;
@@ -819,12 +856,11 @@ main {
 }
 
 .tag-source-ai {
-  opacity: 0.9;
+  border-style: solid;
 }
 
 .tag-source-community {
-  border-color: rgba(34, 197, 94, 0.45) !important;
-  color: #22c55e !important;
+  border-style: dashed;
 }
 
 .chapter-list {

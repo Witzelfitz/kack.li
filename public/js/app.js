@@ -408,16 +408,26 @@ function renderFilmLine(ep) {
 
   const source = String(ep.film_title_source || '').toLowerCase();
   const label = source === 'community'
-    ? 'Community ergänzt'
+    ? 'Quelle: Community'
     : source === 'ai'
-      ? 'KI erkannt'
+      ? 'Quelle: Automatisch'
       : '';
 
   const sourceClass = source === 'community'
     ? 'modal-film-source is-community'
-    : 'modal-film-source is-ai';
+    : 'modal-film-source is-auto';
 
   return `<div class="modal-film">↳ ${escHtml(ep.film_title)}${label ? ` <span class="${sourceClass}">${escHtml(label)}</span>` : ''}</div>`;
+}
+
+function renderSourceLegend({ showAuto, showCommunity }) {
+  if (!showAuto && !showCommunity) return '';
+
+  const chips = [];
+  if (showAuto) chips.push('<span class="source-chip source-chip-auto">Automatisch</span>');
+  if (showCommunity) chips.push('<span class="source-chip source-chip-community">Community</span>');
+
+  return `<div class="source-legend"><span class="source-legend-label">Herkunft</span>${chips.join('')}</div>`;
 }
 
 function renderParsedData(ep) {
@@ -442,7 +452,12 @@ function renderParsedData(ep) {
   const communityGuestKeys = new Set(guestsCommunity.map(toKey));
   const communityTopicKeys = new Set(topicsCommunity.map(toKey));
 
+  const filmSource = String(ep.film_title_source || '').toLowerCase();
+  const showAuto = guestsAi.length > 0 || topicsAi.length > 0 || filmSource === 'ai';
+  const showCommunity = guestsCommunity.length > 0 || topicsCommunity.length > 0 || filmSource === 'community';
+
   let html = '<div class="parsed-data">';
+  html += renderSourceLegend({ showAuto, showCommunity });
 
   if (guests.length) {
     html += `<div class="parsed-section">
@@ -450,7 +465,7 @@ function renderParsedData(ep) {
       <div class="parsed-tags">${guests.map(g => {
         const isCommunity = communityGuestKeys.has(toKey(g));
         const sourceClass = isCommunity ? 'tag-source-community' : 'tag-source-ai';
-        const sourceHint = isCommunity ? 'Community ergänzt' : 'KI erkannt';
+        const sourceHint = isCommunity ? 'Herkunft: Community' : 'Herkunft: Automatisch';
         return `<button class="tag tag-guest ${sourceClass}" title="${escAttr(sourceHint)}" data-action="set-filter" data-close-modal="1" data-type="guest" data-value="${escAttr(g)}">${escHtml(g)}</button>`;
       }).join('')}</div>
     </div>`;
@@ -462,7 +477,7 @@ function renderParsedData(ep) {
       <div class="parsed-tags">${topics.map(t => {
         const isCommunity = communityTopicKeys.has(toKey(t));
         const sourceClass = isCommunity ? 'tag-source-community' : 'tag-source-ai';
-        const sourceHint = isCommunity ? 'Community ergänzt' : 'KI erkannt';
+        const sourceHint = isCommunity ? 'Herkunft: Community' : 'Herkunft: Automatisch';
         return `<button class="tag tag-topic ${sourceClass}" title="${escAttr(sourceHint)}" data-action="set-filter" data-close-modal="1" data-type="topic" data-value="${escAttr(t)}">${escHtml(t)}</button>`;
       }).join('')}</div>
     </div>`;
