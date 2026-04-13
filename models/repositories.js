@@ -245,6 +245,37 @@ export function createRepositories({ dbAll, dbGet, dbRun }) {
       return dbAll(sql, [...params, limit]);
     },
 
+    listForEpisode(episodeId, { status = null, limit = 100 } = {}) {
+      let where = 's.episode_id = ?';
+      const params = [episodeId];
+      if (status) {
+        where += ' AND s.status = ?';
+        params.push(status);
+      }
+
+      const sql = `
+        SELECT s.*, e.title AS episode_title
+        FROM episode_suggestions s
+        JOIN episodes e ON e.id = s.episode_id
+        WHERE ${where}
+        ORDER BY s.id DESC
+        LIMIT ?
+      `;
+      return dbAll(sql, [...params, limit]);
+    },
+
+    listPending(limit = 50) {
+      const sql = `
+        SELECT s.*, e.title AS episode_title
+        FROM episode_suggestions s
+        JOIN episodes e ON e.id = s.episode_id
+        WHERE s.status = 'pending'
+        ORDER BY s.id ASC
+        LIMIT ?
+      `;
+      return dbAll(sql, [limit]);
+    },
+
     countWithEpisodeTitle(where = '1=1', params = []) {
       const sql = `
         SELECT COUNT(*) as c
@@ -255,12 +286,12 @@ export function createRepositories({ dbAll, dbGet, dbRun }) {
       return dbGet(sql, params)?.c || 0;
     },
 
-    markReviewed(id, status, reviewedAt, reviewNote = null) {
+    markReviewed(id, status, reviewedAt, reviewNote = null, reviewedBy = null, reviewSource = null) {
       dbRun(
         `UPDATE episode_suggestions
-         SET status = ?, reviewed_at = ?, review_note = ?
+         SET status = ?, reviewed_at = ?, review_note = ?, reviewed_by = ?, review_source = ?
          WHERE id = ?`,
-        [status, reviewedAt, reviewNote || null, id]
+        [status, reviewedAt, reviewNote || null, reviewedBy || null, reviewSource || null, id]
       );
     },
   };

@@ -57,6 +57,14 @@ export async function createDatabase(dbFile) {
     }
   }
 
+  for (const col of ['reviewed_by TEXT', 'review_source TEXT']) {
+    try {
+      db.run(`ALTER TABLE episode_suggestions ADD COLUMN ${col}`);
+    } catch {
+      // column already exists
+    }
+  }
+
   function dbAll(sql, params = []) {
     const stmt = db.prepare(sql);
     stmt.bind(params);

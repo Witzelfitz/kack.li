@@ -9,17 +9,20 @@ import { PARSE_VERSION, PUBLIC_CORS_PATTERNS } from './config/constants.js';
 import { detectEpisodeFormat } from './lib/episode-utils.js';
 import { createDatabase } from './models/database.js';
 import { createRepositories } from './models/repositories.js';
-import { createRequireAdmin } from './middleware/auth.js';
+import { createRequireAdmin, createRequireApiToken, resolveJarvisTokens } from './middleware/auth.js';
 import { createPublicCors } from './middleware/public-cors.js';
 import { publicLimiter, suggestionLimiter } from './middleware/rate-limiters.js';
 import { createLogger } from './services/logger.js';
 import { createParseService } from './services/parse-service.js';
 import { createEpisodesService } from './services/episodes-service.js';
 import { createWorksService } from './services/works-service.js';
+import { createSuggestionsService } from './services/suggestions-service.js';
 import { createPublicController } from './controllers/public-controller.js';
 import { createAdminController } from './controllers/admin-controller.js';
+import { createJarvisController } from './controllers/jarvis-controller.js';
 import { createPublicRoutes } from './routes/public-routes.js';
 import { createAdminRoutes } from './routes/admin-routes.js';
+import { createJarvisRoutes } from './routes/jarvis-routes.js';
 import { createApp } from './app.js';
 import {
   getEffectiveFilmTitle,
@@ -72,12 +75,23 @@ async function bootstrap() {
   });
 
   const worksService = createWorksService({ episodes });
+  const suggestionsService = createSuggestionsService({
+    episodes,
+    suggestions,
+    tryJson,
+    mergeStringArrays,
+    normalizeText,
+    getEffectiveFilmTitle,
+    log,
+    saveDb: database.saveDb,
+  });
 
   const publicController = createPublicController({
     episodes,
     suggestions,
     meta,
     worksService,
+    suggestionsService,
     parseVersion: PARSE_VERSION,
     openaiEnabled: parseService.enabled,
     serializeEpisode,
@@ -105,6 +119,7 @@ async function bootstrap() {
     saveDb: database.saveDb,
     parseService,
     episodesService,
+    suggestionsService,
   });
 
   const publicRoutes = createPublicRoutes({
@@ -117,11 +132,22 @@ async function bootstrap() {
     requireAdmin: createRequireAdmin(process.env.ADMIN_TOKEN),
   });
 
+  const jarvisController = createJarvisController({
+    normalizeText,
+    suggestionsService,
+  });
+
+  const jarvisRoutes = createJarvisRoutes({
+    controller: jarvisController,
+    requireJarvis: createRequireApiToken(resolveJarvisTokens(process.env)),
+  });
+
   const app = createApp({
     publicCors: createPublicCors(PUBLIC_CORS_PATTERNS),
     publicLimiter,
     publicRoutes,
     adminRoutes,
+    jarvisRoutes,
     staticDir: path.join(__dirname, 'public'),
   });
 

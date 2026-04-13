@@ -9,6 +9,7 @@ export function createAdminController({
   saveDb,
   parseService,
   episodesService,
+  suggestionsService,
 }) {
   return {
     listLogs(req, res) {
@@ -61,6 +62,7 @@ export function createAdminController({
       const suggestionId = parseInt(req.params.id, 10);
       const action = normalizeText(req.body?.action).toLowerCase();
       const reviewNote = String(req.body?.review_note || '').trim();
+      const reviewedBy = String(req.body?.reviewed_by || req.body?.reviewer || 'admin').trim();
 
       if (!Number.isInteger(suggestionId) || suggestionId <= 0) {
         return res.status(400).json({ error: 'Ungültige Suggestion-ID.' });
@@ -72,45 +74,16 @@ export function createAdminController({
         return res.status(400).json({ error: 'Die Review-Notiz darf maximal 500 Zeichen lang sein.' });
       }
 
-      const suggestion = suggestions.getById(suggestionId);
-      if (!suggestion) return res.status(404).json({ error: 'Suggestion nicht gefunden.' });
-      if (suggestion.status !== 'pending') {
-        return res.status(409).json({ error: 'Diese Suggestion wurde bereits bearbeitet.' });
-      }
-
-      if (action === 'approve') {
-        const ep = episodes.getById(suggestion.episode_id);
-        if (!ep) return res.status(404).json({ error: 'Episode nicht gefunden.' });
-
-        if (suggestion.suggestion_type === 'film') {
-          episodes.updateManualFilmTitle(suggestion.episode_id, suggestion.value);
-        } else {
-          const column = suggestion.suggestion_type === 'guest' ? 'manual_guests_json' : 'manual_topics_json';
-          const merged = mergeStringArrays(tryJson(ep[column]), [suggestion.value]);
-          episodes.updateManualArray(column, suggestion.episode_id, merged);
-        }
-      }
-
-      const reviewedAt = new Date().toISOString();
-      const newStatus = action === 'approve' ? 'approved' : 'rejected';
-      suggestions.markReviewed(suggestionId, newStatus, reviewedAt, reviewNote || null);
-
-      log('suggestion-review', `Suggestion #${suggestionId} ${action === 'approve' ? 'freigegeben' : 'abgelehnt'}`, {
-        suggestion_id: suggestionId,
-        episode_id: suggestion.episode_id,
-        type: suggestion.suggestion_type,
-        value: suggestion.value,
+      const result = suggestionsService.reviewSuggestion({
+        suggestionId,
+        action,
+        reviewNote,
+        reviewedBy,
+        reviewSource: 'admin-api',
       });
 
-      saveDb();
-      return res.json({
-        ok: true,
-        id: suggestionId,
-        status: newStatus,
-        episode_id: suggestion.episode_id,
-        type: suggestion.suggestion_type,
-        value: suggestion.value,
-      });
+      if (!result.ok) return res.status(result.status).json({ error: result.error });
+      return res.json(result);
     },
 
     async sync(_req, res) {

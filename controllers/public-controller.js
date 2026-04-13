@@ -3,6 +3,7 @@ export function createPublicController({
   suggestions,
   meta,
   worksService,
+  suggestionsService,
   parseVersion,
   openaiEnabled,
   serializeEpisode,
@@ -260,6 +261,55 @@ export function createPublicController({
       return res.json(ep);
     },
 
+    listEpisodeSuggestions(req, res) {
+      const episodeId = parseInt(req.params.id, 10);
+      if (!Number.isInteger(episodeId) || episodeId <= 0) {
+        return res.status(400).json({ error: 'Ungültige Episode.' });
+      }
+
+      const ep = episodes.getById(episodeId);
+      if (!ep) return res.status(404).json({ error: 'Episode nicht gefunden.' });
+
+      const status = normalizeText(req.query.status).toLowerCase();
+      if (status && !['pending', 'approved', 'rejected'].includes(status)) {
+        return res.status(400).json({
+          code: 'VALIDATION_ERROR',
+          message: 'Ungültiger Statusfilter.',
+          details: [{ field: 'status', issue: 'invalid_choice', allowed: ['pending', 'approved', 'rejected'] }],
+        });
+      }
+
+      const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 100, 1), 500);
+      const { flow, suggestions: rows } = suggestionsService.getEpisodeSuggestionFlow(episodeId, limit);
+      const filtered = status ? rows.filter((row) => row.status === status) : rows;
+
+      return res.json({
+        episode_id: episodeId,
+        episode_title: ep.title,
+        flow,
+        suggestions: filtered,
+      });
+    },
+
+    getEpisodeSuggestionHistory(req, res) {
+      const episodeId = parseInt(req.params.id, 10);
+      if (!Number.isInteger(episodeId) || episodeId <= 0) {
+        return res.status(400).json({ error: 'Ungültige Episode.' });
+      }
+
+      const ep = episodes.getById(episodeId);
+      if (!ep) return res.status(404).json({ error: 'Episode nicht gefunden.' });
+
+      const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 300, 1), 1000);
+      const events = suggestionsService.getEpisodeSuggestionHistory(episodeId, limit);
+
+      return res.json({
+        episode_id: episodeId,
+        episode_title: ep.title,
+        events,
+      });
+    },
+
     listGuests(_req, res) {
       const rows = episodes.guestsRows();
       const guestMap = new Map();
@@ -432,15 +482,8 @@ export function createPublicController({
       const ep = episodes.getById(episodeId);
       if (!ep) return res.status(404).json({ error: 'Episode nicht gefunden.' });
 
-      if (suggestionType === 'film') {
-        if (normalizeText(getEffectiveFilmTitle(ep)).toLowerCase() === value.toLowerCase()) {
-          return res.status(409).json({ error: 'Dieser Filmvorschlag ist bereits übernommen.' });
-        }
-      } else {
-        const mergedValues = suggestionType === 'guest' ? getMergedGuests(ep) : getMergedTopics(ep);
-        if (stringsInclude(mergedValues, value)) {
-          return res.status(409).json({ error: 'Dieser Vorschlag ist bereits übernommen.' });
-        }
+      if (suggestionsService.isSuggestionAlreadyMerged(ep, suggestionType, value)) {
+        return res.status(409).json({ error: 'Dieser Vorschlag ist bereits übernommen.' });
       }
 
       const pending = suggestions.findPendingDuplicate(episodeId, suggestionType, value.toLowerCase());

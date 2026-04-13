@@ -315,6 +315,23 @@ function renderSuggestionForm(episodeId) {
   `;
 }
 
+function renderSuggestionFlow(data) {
+  if (!data || !data.flow) return '';
+  const flow = data.flow || { pending: 0, approved: 0, rejected: 0 };
+  const rows = Array.isArray(data.suggestions) ? data.suggestions.slice(0, 8) : [];
+
+  return `
+    <div class="suggestion-box">
+      <div class="parsed-label">MODERATION</div>
+      <p class="suggestion-copy">Statusfluss: ⏳ ${flow.pending || 0} offen · ✅ ${flow.approved || 0} freigegeben · ❌ ${flow.rejected || 0} abgelehnt</p>
+      ${rows.length ? `<div class="parsed-tags">${rows.map((row) => {
+        const icon = row.status === 'approved' ? '✅' : row.status === 'rejected' ? '❌' : '⏳';
+        return `<span class="tag" title="${escAttr(row.status)}">${icon} ${escHtml(row.type)}: ${escHtml(row.value)}</span>`;
+      }).join('')}</div>` : '<p class="suggestion-copy">Noch keine Vorschläge vorhanden.</p>'}
+    </div>
+  `;
+}
+
 async function handleSuggestionSubmit(event) {
   const form = event.target.closest('.suggestion-form');
   if (!form) return;
@@ -358,7 +375,10 @@ async function openModal(id) {
   document.body.style.overflow = 'hidden';
 
   try {
-    const ep   = await api(`/api/episodes/${id}`);
+    const [ep, suggestionFlow] = await Promise.all([
+      api(`/api/episodes/${id}`),
+      api(`/api/episodes/${id}/suggestions?limit=30`).catch(() => null),
+    ]);
     const desc = ep.description || ep.summary || '';
     const spotifyUrl = `https://open.spotify.com/search/${encodeURIComponent((ep.title || '') + ' Kack Sachgeschichten')}/episodes`;
 
@@ -373,6 +393,7 @@ async function openModal(id) {
       ${renderModalDescription(desc)}
       ${renderParsedData(ep)}
       ${renderSuggestionForm(ep.id)}
+      ${renderSuggestionFlow(suggestionFlow)}
       <div class="modal-actions">
         <a class="btn-spotify" href="${escAttr(spotifyUrl)}" target="_blank" rel="noopener">▶ AUF SPOTIFY ÖFFNEN</a>
       </div>
