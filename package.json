@@ -6,7 +6,9 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "test:format-rules": "node tests/format-rules.test.mjs",
+    "test:format-coverage": "node scripts/check-format-coverage.mjs"
   },
   "dependencies": {
     "dotenv": "^17.4.1",

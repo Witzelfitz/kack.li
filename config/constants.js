@@ -10,8 +10,18 @@ export const FORMAT_DEFINITIONS = [
   { name: 'Premium Classics', pattern: /^Premium Classics\b/i },
   { name: 'Geburtstags-Show', pattern: /(?:^|#\d+:\s*)Geburtstags-Show\b/i },
   { name: 'Filmschissenschaft', pattern: /(?:^|#\d+:\s*)Filmschissenschaft\b/i },
-  { name: 'Skepschiz', pattern: /^Skepschiz\b/i },
+  { name: 'Skepshiz', pattern: /^Skeps(?:h|ch)iz\b/i },
   { name: 'Schrott und die Welt', pattern: /^Schrott und die Welt\b/i },
+  { name: 'Trek Talk Takeover', pattern: /(?:^|#\d+:\s*)Trek Talk Takeover\b/i },
+  { name: 'Q&A', pattern: /^Q&A\b/i },
+  { name: 'Bonus', pattern: /^BONUS\b/i },
+  { name: 'Meta', pattern: /^(?:Meta:|Metafolge:)/i },
+  { name: 'Trailer', pattern: /^Trailer:/i },
+  {
+    name: 'Sonderfolge',
+    pattern: /^(?:Die Stuhlprobe:|Wir sind am Ende|Corona(?:\s+Talk)?:|Hoop\s*&\s*Poopgeschichten|Live Tour|Crossover mit|Kackzilla)/i,
+  },
+  { name: 'Hauptfolge', pattern: /^#\d+\s*:/i },
 ];
 
 export const PUBLIC_CORS_PATTERNS = [
