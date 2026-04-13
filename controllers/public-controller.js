@@ -51,6 +51,75 @@ export function createPublicController({
     return { ok: true, provided: true, value: normalized };
   }
 
+  function parseBooleanField(value, fieldName) {
+    if (value === undefined) return { ok: true, provided: false, value: false };
+    if (Array.isArray(value)) return { ok: false, error: { field: fieldName, issue: 'must_be_boolean' } };
+
+    const raw = String(value).trim().toLowerCase();
+    if (['1', 'true', 'yes'].includes(raw)) return { ok: true, provided: true, value: true };
+    if (['0', 'false', 'no'].includes(raw)) return { ok: true, provided: true, value: false };
+
+    return { ok: false, error: { field: fieldName, issue: 'must_be_boolean' } };
+  }
+
+  function parseDurationToSeconds(value) {
+    const raw = normalizeText(value);
+    if (!raw) return 0;
+
+    if (/^\d+$/.test(raw)) return Number.parseInt(raw, 10);
+
+    const parts = raw.split(':').map((part) => Number.parseInt(part, 10));
+    if (parts.some((part) => Number.isNaN(part) || part < 0)) return 0;
+
+    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    if (parts.length === 2) return parts[0] * 60 + parts[1];
+    if (parts.length === 1) return parts[0];
+    return 0;
+  }
+
+  function getTopicFilters(req, details) {
+    const topics = [];
+
+    const search = new URL(req.originalUrl || req.url, 'http://localhost').searchParams;
+    for (const value of search.getAll('topic')) topics.push(value);
+    for (const value of search.getAll('topic[]')) topics.push(value);
+
+    if (req.query.topic && !Array.isArray(req.query.topic) && !topics.length) {
+      topics.push(req.query.topic);
+    }
+
+    const out = [];
+    for (const value of topics) {
+      const normalized = normalizeText(value);
+      if (!normalized) continue;
+      if (normalized.length > 120) {
+        details.push({ field: 'topic[]', issue: 'too_long', maxLength: 120 });
+        continue;
+      }
+      if (!out.includes(normalized)) out.push(normalized);
+    }
+
+    return out;
+  }
+
+  function scoreRelevance(ep, query) {
+    const q = normalizeText(query).toLowerCase();
+    if (!q) return 0;
+
+    const title = normalizeText(ep.title).toLowerCase();
+    const description = normalizeText(ep.description).toLowerCase();
+    const summary = normalizeText(ep.summary).toLowerCase();
+
+    let score = 0;
+    if (title === q) score += 120;
+    if (title.startsWith(q)) score += 80;
+    if (title.includes(q)) score += 50;
+    if (description.includes(q)) score += 20;
+    if (summary.includes(q)) score += 10;
+
+    return score;
+  }
+
   return {
     listEpisodes(req, res) {
       const details = [];
@@ -67,11 +136,27 @@ export function createPublicController({
       const guestResult = parseStringFilter(req.query.guest, 'guest', { maxLength: 120 });
       if (!guestResult.ok) details.push(guestResult.error);
 
-      const topicResult = parseStringFilter(req.query.topic, 'topic', { maxLength: 120 });
-      if (!topicResult.ok) details.push(topicResult.error);
-
       const formatResult = parseStringFilter(req.query.format, 'format', { maxLength: 120 });
       if (!formatResult.ok) details.push(formatResult.error);
+
+      const sortResult = parseStringFilter(req.query.sort, 'sort', { maxLength: 40 });
+      if (!sortResult.ok) details.push(sortResult.error);
+
+      const hasGuestResult = parseBooleanField(req.query.has_guest, 'has_guest');
+      if (!hasGuestResult.ok) details.push(hasGuestResult.error);
+
+      const hasChaptersResult = parseBooleanField(req.query.has_chapters, 'has_chapters');
+      if (!hasChaptersResult.ok) details.push(hasChaptersResult.error);
+
+      const hasFilmTitleResult = parseBooleanField(req.query.has_film_title, 'has_film_title');
+      if (!hasFilmTitleResult.ok) details.push(hasFilmTitleResult.error);
+
+      const topics = getTopicFilters(req, details);
+
+      const sort = sortResult.provided ? normalizeText(sortResult.value).toLowerCase() : 'pub_date';
+      if (!['pub_date', 'relevance', 'duration'].includes(sort)) {
+        details.push({ field: 'sort', issue: 'invalid_choice', allowed: ['pub_date', 'relevance', 'duration'] });
+      }
 
       if (details.length) return validationError(res, details);
 
@@ -79,7 +164,6 @@ export function createPublicController({
       const off = offsetResult.provided ? offsetResult.value : 0;
       const q = qResult.value;
       const guest = guestResult.value;
-      const topic = topicResult.value;
       const format = formatResult.value;
 
       let where = '1=1';
@@ -94,18 +178,80 @@ export function createPublicController({
         where += ' AND (guests_json LIKE ? OR manual_guests_json LIKE ?)';
         params.push(`%${guest}%`, `%${guest}%`);
       }
-      if (topic) {
-        where += ' AND (topics_json LIKE ? OR manual_topics_json LIKE ?)';
-        params.push(`%${topic}%`, `%${topic}%`);
-      }
       if (format) {
         where += ' AND format_name = ?';
         params.push(format);
       }
+      for (const topic of topics) {
+        where += ' AND (topics_json LIKE ? OR manual_topics_json LIKE ?)';
+        params.push(`%${topic}%`, `%${topic}%`);
+      }
+
+      if (hasGuestResult.provided) {
+        if (hasGuestResult.value) {
+          where += " AND ((guests_json IS NOT NULL AND TRIM(guests_json) NOT IN ('', '[]')) OR (manual_guests_json IS NOT NULL AND TRIM(manual_guests_json) NOT IN ('', '[]')))";
+        } else {
+          where += " AND ((guests_json IS NULL OR TRIM(guests_json) IN ('', '[]')) AND (manual_guests_json IS NULL OR TRIM(manual_guests_json) IN ('', '[]')))";
+        }
+      }
+
+      if (hasChaptersResult.provided) {
+        if (hasChaptersResult.value) {
+          where += " AND (chapters_json IS NOT NULL AND TRIM(chapters_json) NOT IN ('', '[]'))";
+        } else {
+          where += " AND (chapters_json IS NULL OR TRIM(chapters_json) IN ('', '[]'))";
+        }
+      }
+
+      if (hasFilmTitleResult.provided) {
+        if (hasFilmTitleResult.value) {
+          where += " AND ((film_title IS NOT NULL AND TRIM(film_title) != '') OR (manual_film_title IS NOT NULL AND TRIM(manual_film_title) != ''))";
+        } else {
+          where += " AND ((film_title IS NULL OR TRIM(film_title) = '') AND (manual_film_title IS NULL OR TRIM(manual_film_title) = ''))";
+        }
+      }
 
       const total = episodes.count(where, params);
-      const rows = episodes.list(where, params, lim, off).map(serializeEpisode);
-      return res.json({ total, limit: lim, offset: off, episodes: rows });
+
+      let rows;
+      if (sort === 'pub_date') {
+        rows = episodes.list(where, params, lim, off, 'pub_ts DESC, id DESC');
+      } else {
+        const all = episodes.list(where, params, total || 1, 0, 'pub_ts DESC, id DESC');
+
+        if (sort === 'relevance' && q) {
+          all.sort((a, b) => {
+            const byScore = scoreRelevance(b, q) - scoreRelevance(a, q);
+            if (byScore !== 0) return byScore;
+            return (Number.parseInt(b.pub_ts, 10) || 0) - (Number.parseInt(a.pub_ts, 10) || 0);
+          });
+        } else if (sort === 'duration') {
+          all.sort((a, b) => {
+            const byDuration = parseDurationToSeconds(b.duration) - parseDurationToSeconds(a.duration);
+            if (byDuration !== 0) return byDuration;
+            return (Number.parseInt(b.pub_ts, 10) || 0) - (Number.parseInt(a.pub_ts, 10) || 0);
+          });
+        }
+
+        rows = all.slice(off, off + lim);
+      }
+
+      return res.json({
+        total,
+        limit: lim,
+        offset: off,
+        sort,
+        filters: {
+          q: q || null,
+          guest: guest || null,
+          topics,
+          format: format || null,
+          has_guest: hasGuestResult.provided ? hasGuestResult.value : null,
+          has_chapters: hasChaptersResult.provided ? hasChaptersResult.value : null,
+          has_film_title: hasFilmTitleResult.provided ? hasFilmTitleResult.value : null,
+        },
+        episodes: rows.map(serializeEpisode),
+      });
     },
 
     getEpisodeById(req, res) {

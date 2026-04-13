@@ -4,9 +4,9 @@ export function createRepositories({ dbAll, dbGet, dbRun }) {
       return dbGet(`SELECT COUNT(*) as c FROM episodes WHERE ${where}`, params)?.c || 0;
     },
 
-    list(where = '1=1', params = [], limit = 24, offset = 0) {
+    list(where = '1=1', params = [], limit = 24, offset = 0, orderBy = 'pub_ts DESC, id DESC') {
       return dbAll(
-        `SELECT * FROM episodes WHERE ${where} ORDER BY pub_ts DESC LIMIT ? OFFSET ?`,
+        `SELECT * FROM episodes WHERE ${where} ORDER BY ${orderBy} LIMIT ? OFFSET ?`,
         [...params, limit, offset]
       );
     },
