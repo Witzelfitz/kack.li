@@ -9,7 +9,8 @@
     "dev": "node --watch server.js",
     "test:format-rules": "node tests/format-rules.test.mjs",
     "test:format-coverage": "node scripts/check-format-coverage.mjs",
-    "test:guest-normalization": "node tests/guest-normalization.test.mjs"
+    "test:guest-normalization": "node tests/guest-normalization.test.mjs",
+    "test:topic-normalization": "node tests/topic-normalization.test.mjs"
   },
   "dependencies": {
     "dotenv": "^17.4.1",

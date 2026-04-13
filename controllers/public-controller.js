@@ -13,6 +13,7 @@ export function createPublicController({
   getMergedTopics,
   getEffectiveFilmTitle,
   normalizeGuestEntry,
+  normalizeTopicEntry,
   log,
   saveDb,
 }) {
@@ -171,18 +172,41 @@ export function createPublicController({
 
     listTopics(_req, res) {
       const rows = episodes.topicsRows();
-      const counts = {};
+      const topicMap = new Map();
 
       for (const row of rows) {
-        for (const topic of mergeStringArrays(tryJson(row.topics_json), tryJson(row.manual_topics_json))) {
-          counts[topic] = (counts[topic] || 0) + 1;
+        const merged = mergeStringArrays(tryJson(row.topics_json), tryJson(row.manual_topics_json));
+        for (const rawTopic of merged) {
+          const normalized = normalizeTopicEntry(rawTopic);
+          if (!normalized) continue;
+
+          if (!topicMap.has(normalized.id)) {
+            topicMap.set(normalized.id, {
+              id: normalized.id,
+              name: normalized.name,
+              aliases: new Set(normalized.aliases || []),
+              count: 0,
+            });
+          }
+
+          const entry = topicMap.get(normalized.id);
+          entry.count += 1;
+
+          if (normalizeText(rawTopic).toLowerCase() !== normalizeText(normalized.name).toLowerCase()) {
+            entry.aliases.add(normalizeText(rawTopic));
+          }
         }
       }
 
       return res.json(
-        Object.entries(counts)
-          .map(([name, count]) => ({ name, count }))
-          .sort((a, b) => b.count - a.count)
+        Array.from(topicMap.values())
+          .map((entry) => ({
+            id: entry.id,
+            name: entry.name,
+            aliases: Array.from(entry.aliases).sort((a, b) => a.localeCompare(b, 'de')),
+            count: entry.count,
+          }))
+          .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'de'))
       );
     },
 
