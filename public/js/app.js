@@ -6,15 +6,33 @@ let currentGuest = '';
 let currentTopic = '';
 let currentFormat = '';
 let searchTimer  = null;
+let filtersReady = false;
+let pendingUrlFilter = null;
+
+const filterCatalog = {
+  guest: [],
+  topic: [],
+  format: [],
+};
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  loadStatus();
-  loadEpisodes();
-  loadFilters();
+  applyUrlStateFromLocation();
 
   const input = document.getElementById('searchInput');
   const modal = document.getElementById('modal');
+
+  input.value = currentQuery;
+  document.getElementById('clearBtn').classList.toggle('visible', currentQuery.length > 0);
+
+  loadStatus();
+  loadFilters().finally(() => {
+    filtersReady = true;
+    applyPendingUrlFilter();
+    updateFilterUI();
+    syncUrlState();
+    loadEpisodes();
+  });
 
   input.addEventListener('input', () => {
     const q = input.value.trim();
@@ -23,8 +41,18 @@ document.addEventListener('DOMContentLoaded', () => {
     searchTimer = setTimeout(() => {
       currentQuery = q;
       currentPage  = 0;
+      syncUrlState();
       loadEpisodes();
     }, 320);
+  });
+
+  window.addEventListener('popstate', () => {
+    applyUrlStateFromLocation();
+    if (filtersReady) applyPendingUrlFilter();
+    input.value = currentQuery;
+    document.getElementById('clearBtn').classList.toggle('visible', currentQuery.length > 0);
+    updateFilterUI();
+    loadEpisodes();
   });
 
   document.getElementById('clearBtn').addEventListener('click', clearSearch);
@@ -96,6 +124,95 @@ async function loadStatus() {
   }
 }
 
+function slugifyForUrl(value) {
+  return String(value || '')
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/ß/g, 'ss')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .replace(/-{2,}/g, '-');
+}
+
+function getActiveFilterState() {
+  if (currentGuest) return { type: 'guest', value: currentGuest };
+  if (currentTopic) return { type: 'topic', value: currentTopic };
+  if (currentFormat) return { type: 'format', value: currentFormat };
+  return null;
+}
+
+function setActiveFilterState(type, value) {
+  currentGuest = type === 'guest' ? value : '';
+  currentTopic = type === 'topic' ? value : '';
+  currentFormat = type === 'format' ? value : '';
+}
+
+function applyUrlStateFromLocation() {
+  const path = window.location.pathname.replace(/^\/+|\/+$/g, '');
+  const parts = path ? path.split('/') : [];
+
+  currentGuest = '';
+  currentTopic = '';
+  currentFormat = '';
+  pendingUrlFilter = null;
+
+  if (parts.length >= 2 && ['guest', 'topic', 'format'].includes(parts[0])) {
+    pendingUrlFilter = {
+      type: parts[0],
+      slug: decodeURIComponent(parts.slice(1).join('/')),
+    };
+  }
+
+  const search = new URLSearchParams(window.location.search || '');
+  currentQuery = String(search.get('q') || '').trim();
+
+  const pageParam = Number.parseInt(String(search.get('page') || ''), 10);
+  currentPage = Number.isInteger(pageParam) && pageParam > 1 ? pageParam - 1 : 0;
+
+  if (!pendingUrlFilter) {
+    const guest = String(search.get('guest') || '').trim();
+    const topic = String(search.get('topic') || '').trim();
+    const format = String(search.get('format') || '').trim();
+
+    if (guest) setActiveFilterState('guest', guest);
+    else if (topic) setActiveFilterState('topic', topic);
+    else if (format) setActiveFilterState('format', format);
+  }
+}
+
+function applyPendingUrlFilter() {
+  if (!pendingUrlFilter) return;
+
+  const type = pendingUrlFilter.type;
+  const slug = slugifyForUrl(pendingUrlFilter.slug);
+  const items = filterCatalog[type] || [];
+
+  const match = items.find((item) => slugifyForUrl(item.name) === slug);
+  if (match) {
+    setActiveFilterState(type, match.name);
+  }
+
+  pendingUrlFilter = null;
+}
+
+function syncUrlState({ push = false } = {}) {
+  const active = getActiveFilterState();
+  const path = active ? `/${active.type}/${encodeURIComponent(slugifyForUrl(active.value))}` : '/';
+
+  const params = new URLSearchParams();
+  if (currentQuery) params.set('q', currentQuery);
+  if (currentPage > 0) params.set('page', String(currentPage + 1));
+
+  const query = params.toString();
+  const next = `${path}${query ? `?${query}` : ''}`;
+  const current = `${window.location.pathname}${window.location.search}`;
+  if (next === current) return;
+
+  const method = push ? 'pushState' : 'replaceState';
+  window.history[method]({}, '', next);
+}
+
 // ── Filters ───────────────────────────────────────────────────────────────────
 let filterPanelOpen = false;
 
@@ -106,11 +223,17 @@ async function loadFilters() {
       api('/api/guests'),
       api('/api/topics'),
     ]);
-    if (!formats.length && !guests.length && !topics.length) return;
+
+    filterCatalog.format = Array.isArray(formats) ? formats : [];
+    filterCatalog.guest = Array.isArray(guests) ? guests : [];
+    filterCatalog.topic = Array.isArray(topics) ? topics : [];
+
+    if (!filterCatalog.format.length && !filterCatalog.guest.length && !filterCatalog.topic.length) return;
+
     document.getElementById('filterToggle').style.display = '';
-    renderFilterTags('formatTags', formats, 'format');
-    renderFilterTags('guestTags', guests.slice(0, 30), 'guest');
-    renderFilterTags('topicTags', topics.slice(0, 40), 'topic');
+    renderFilterTags('formatTags', filterCatalog.format, 'format');
+    renderFilterTags('guestTags', filterCatalog.guest.slice(0, 30), 'guest');
+    renderFilterTags('topicTags', filterCatalog.topic.slice(0, 40), 'topic');
     updateFilterUI();
   } catch {}
 }
@@ -133,25 +256,20 @@ function renderFilterTags(containerId, items, type) {
 
 function setFilter(type, value) {
   if (type !== 'guest' && type !== 'topic' && type !== 'format') return;
-  if (type === 'guest') {
-    currentGuest = currentGuest === value ? '' : value;
-    currentTopic = '';
-    currentFormat = '';
-  } else if (type === 'topic') {
-    currentTopic = currentTopic === value ? '' : value;
-    currentGuest = '';
-    currentFormat = '';
-  } else {
-    currentFormat = currentFormat === value ? '' : value;
-    currentGuest = '';
-    currentTopic = '';
-  }
+
+  const current = getActiveFilterState();
+  const shouldClear = current && current.type === type && current.value === value;
+  setActiveFilterState(shouldClear ? '' : type, shouldClear ? '' : value);
+
   currentPage = 0;
+
   // Close panel after selection
   filterPanelOpen = false;
   document.getElementById('filterBar').style.display = 'none';
   document.getElementById('filterToggle').classList.remove('open');
+
   updateFilterUI();
+  syncUrlState({ push: true });
   loadEpisodes();
 }
 
@@ -178,6 +296,7 @@ function clearFilters() {
   currentFormat = '';
   currentPage  = 0;
   updateFilterUI();
+  syncUrlState({ push: true });
   loadEpisodes();
 }
 
@@ -255,6 +374,7 @@ function renderPagination(total) {
 
 function goPage(page) {
   currentPage = Math.max(0, page);
+  syncUrlState();
   loadEpisodes();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -517,6 +637,7 @@ function clearSearch() {
   document.getElementById('clearBtn').classList.remove('visible');
   currentQuery = '';
   currentPage  = 0;
+  syncUrlState({ push: true });
   loadEpisodes();
   input.focus();
 }
