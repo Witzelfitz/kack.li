@@ -15,6 +15,13 @@
     .base-url-badge { font-family: var(--font-mono); font-size: 13px; color: var(--text); background: var(--bg2); border: 1px solid var(--border2); padding: 7px 14px; }
     .info-pill { font-family: var(--font-mono); font-size: 10px; color: var(--text3); border: 1px solid var(--border); padding: 3px 10px; letter-spacing: 0.06em; }
 
+    .rate-box { background: var(--bg2); border: 1px solid var(--border); padding: 14px 16px; margin-bottom: 28px; }
+    .rate-title { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; color: var(--text); margin-bottom: 8px; }
+    .rate-copy { font-size: 12px; color: var(--text2); line-height: 1.65; margin: 0 0 10px; }
+    .rate-list { margin: 0 0 10px 16px; padding: 0; color: var(--text2); font-size: 12px; line-height: 1.6; }
+    .rate-list code { font-family: var(--font-mono); font-size: 11px; background: var(--bg3); padding: 1px 5px; }
+    .rate-pre { margin: 0; background: var(--bg); border: 1px solid var(--border); padding: 10px 12px; font-family: var(--font-mono); font-size: 11px; color: var(--text2); white-space: pre-wrap; line-height: 1.55; }
+
     /* ── Groups ── */
     .ep-group { margin-bottom: 40px; }
     .ep-group-title { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text3); padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
@@ -117,6 +124,26 @@
         <span class="info-pill">100 REQ / 15 MIN</span>
         <span class="info-pill">CORS ENABLED</span>
       </div>
+
+      <section class="rate-box">
+        <div class="rate-title">RATE LIMITS &amp; 429-VERHALTEN</div>
+        <p class="rate-copy">Alle öffentlichen API-Requests unter <code style="font-family:var(--font-mono);font-size:11px;background:var(--bg3);padding:1px 5px">/api/*</code> sind auf <strong>100 Requests pro 15 Minuten</strong> limitiert. Die Antwort enthält zur Steuerung immer diese Header:</p>
+        <ul class="rate-list">
+          <li><code>RateLimit-Policy</code> – aktives Limitfenster (z. B. <code>100;w=900</code>)</li>
+          <li><code>RateLimit-Limit</code> – maximale Requests im Fenster</li>
+          <li><code>RateLimit-Remaining</code> – verbleibende Requests</li>
+          <li><code>RateLimit-Reset</code> – Sekunden bis Reset</li>
+        </ul>
+        <pre class="rate-pre">Beispiel (200):
+RateLimit-Policy: 100;w=900
+RateLimit-Limit: 100
+RateLimit-Remaining: 98
+RateLimit-Reset: 742
+
+Beispiel (429):
+HTTP 429 Too Many Requests
+{ "error": "Zu viele Anfragen, bitte später erneut versuchen." }</pre>
+      </section>
 
       <!-- PUBLIC -->
       <div class="ep-group">
