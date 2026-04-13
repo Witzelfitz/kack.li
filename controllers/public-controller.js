@@ -12,6 +12,7 @@ export function createPublicController({
   getMergedGuests,
   getMergedTopics,
   getEffectiveFilmTitle,
+  normalizeGuestEntry,
   log,
   saveDb,
 }) {
@@ -113,18 +114,41 @@ export function createPublicController({
 
     listGuests(_req, res) {
       const rows = episodes.guestsRows();
-      const counts = {};
+      const guestMap = new Map();
 
       for (const row of rows) {
-        for (const g of mergeStringArrays(tryJson(row.guests_json), tryJson(row.manual_guests_json))) {
-          counts[g] = (counts[g] || 0) + 1;
+        const merged = mergeStringArrays(tryJson(row.guests_json), tryJson(row.manual_guests_json));
+        for (const rawGuest of merged) {
+          const normalized = normalizeGuestEntry(rawGuest);
+          if (!normalized) continue;
+
+          if (!guestMap.has(normalized.id)) {
+            guestMap.set(normalized.id, {
+              id: normalized.id,
+              name: normalized.name,
+              aliases: new Set(normalized.aliases || []),
+              count: 0,
+            });
+          }
+
+          const entry = guestMap.get(normalized.id);
+          entry.count += 1;
+
+          if (normalizeText(rawGuest).toLowerCase() !== normalizeText(normalized.name).toLowerCase()) {
+            entry.aliases.add(normalizeText(rawGuest));
+          }
         }
       }
 
       return res.json(
-        Object.entries(counts)
-          .map(([name, count]) => ({ name, count }))
-          .sort((a, b) => b.count - a.count)
+        Array.from(guestMap.values())
+          .map((entry) => ({
+            id: entry.id,
+            name: entry.name,
+            aliases: Array.from(entry.aliases).sort((a, b) => a.localeCompare(b, 'de')),
+            count: entry.count,
+          }))
+          .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'de'))
       );
     },
 

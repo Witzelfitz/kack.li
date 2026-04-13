@@ -25,6 +25,7 @@ import {
   getMergedGuests,
   getMergedTopics,
   mergeStringArrays,
+  normalizeGuestEntry,
   normalizeText,
   serializeEpisode,
   stringsInclude,
@@ -82,6 +83,7 @@ async function bootstrap() {
     getMergedGuests,
     getMergedTopics,
     getEffectiveFilmTitle,
+    normalizeGuestEntry,
     log,
     saveDb: database.saveDb,
   });
