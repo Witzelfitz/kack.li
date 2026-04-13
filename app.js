@@ -23,10 +23,5 @@ export function createApp({
   app.use('/api', adminRoutes);
   app.use(express.static(staticDir));
 
-  app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api') || req.path.startsWith('/internal')) return next();
-    return res.sendFile(`${staticDir}/index.html`);
-  });
-
   return app;
 }

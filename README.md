@@ -307,14 +307,17 @@ npm run test:suggestion-clusters
 
 ## Share-Links / Slugs
 
-### Filter teilen
-- `https://kack.li/topic/<slug>`
-- `https://kack.li/guest/<slug>`
-- `https://kack.li/format/<slug>`
+### Filter teilen (nur Query-System)
+- `https://kack.li/?topic=<slug>`
+- `https://kack.li/?guest=<slug>`
+- `https://kack.li/?format=<slug>`
 
 mit optionaler Suche/Page:
-- `?q=...`
-- `?page=...`
+- `&q=...`
+- `&page=...`
+
+Beispiel:
+- `https://kack.li/?topic=star-wars&q=rebel&page=2`
 
 ### Episode direkt als Popup öffnen
 - `https://kack.li/?id=290`

@@ -167,41 +167,21 @@ function setActiveFilterState(type, value) {
   currentFormat = type === 'format' ? value : '';
 }
 
-function parseEpisodeIdFromPathSegment(value) {
+function parseEpisodeId(value) {
   const raw = decodeURIComponent(String(value || '').trim());
   if (!raw) return null;
+  if (!/^\d+$/.test(raw)) return null;
 
-  if (/^\d+$/.test(raw)) {
-    const id = Number.parseInt(raw, 10);
-    return Number.isInteger(id) && id > 0 ? id : null;
-  }
-
-  const match = raw.match(/(?:^|-)(\d+)$/);
-  if (!match) return null;
-
-  const id = Number.parseInt(match[1], 10);
+  const id = Number.parseInt(raw, 10);
   return Number.isInteger(id) && id > 0 ? id : null;
 }
 
 function applyUrlStateFromLocation() {
-  const path = window.location.pathname.replace(/^\/+|\/+$/g, '');
-  const parts = path ? path.split('/') : [];
-
   currentGuest = '';
   currentTopic = '';
   currentFormat = '';
   pendingUrlFilter = null;
   pendingUrlEpisodeId = null;
-
-  if (parts.length >= 2 && ['guest', 'topic', 'format'].includes(parts[0])) {
-    pendingUrlFilter = {
-      type: parts[0],
-      slug: decodeURIComponent(parts.slice(1).join('/')),
-    };
-  } else if (parts.length >= 2 && parts[0] === 'episode') {
-    // backward compatibility for older shared links
-    pendingUrlEpisodeId = parseEpisodeIdFromPathSegment(parts.slice(1).join('/'));
-  }
 
   const search = new URLSearchParams(window.location.search || '');
   currentQuery = String(search.get('q') || '').trim();
@@ -209,17 +189,15 @@ function applyUrlStateFromLocation() {
   const pageParam = Number.parseInt(String(search.get('page') || ''), 10);
   currentPage = Number.isInteger(pageParam) && pageParam > 1 ? pageParam - 1 : 0;
 
-  const idParam = parseEpisodeIdFromPathSegment(search.get('id'));
+  const idParam = parseEpisodeId(search.get('id'));
   if (idParam) pendingUrlEpisodeId = idParam;
 
-  if (!pendingUrlFilter && !pendingUrlEpisodeId) {
-    const guest = String(search.get('guest') || '').trim();
-    const topic = String(search.get('topic') || '').trim();
-    const format = String(search.get('format') || '').trim();
-
-    if (guest) setActiveFilterState('guest', guest);
-    else if (topic) setActiveFilterState('topic', topic);
-    else if (format) setActiveFilterState('format', format);
+  for (const type of ['guest', 'topic', 'format']) {
+    const slug = String(search.get(type) || '').trim();
+    if (slug) {
+      pendingUrlFilter = { type, slug };
+      break;
+    }
   }
 }
 
@@ -240,19 +218,15 @@ function applyPendingUrlFilter() {
 
 function syncUrlState({ push = false } = {}) {
   const active = getActiveFilterState();
-
-  let path = '/';
-  if (active) {
-    path = `/${active.type}/${encodeURIComponent(slugifyForUrl(active.value))}`;
-  }
-
   const params = new URLSearchParams();
+
+  if (active) params.set(active.type, slugifyForUrl(active.value));
   if (currentQuery) params.set('q', currentQuery);
   if (currentPage > 0) params.set('page', String(currentPage + 1));
   if (currentModalEpisodeId) params.set('id', String(currentModalEpisodeId));
 
   const query = params.toString();
-  const next = `${path}${query ? `?${query}` : ''}`;
+  const next = `/${query ? `?${query}` : ''}`;
   const current = `${window.location.pathname}${window.location.search}`;
   if (next === current) return;
 
