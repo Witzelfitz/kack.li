@@ -10,7 +10,6 @@ let filtersReady = false;
 let pendingUrlFilter = null;
 let pendingUrlEpisodeId = null;
 let currentModalEpisodeId = null;
-let currentModalEpisodeSlug = '';
 
 const filterCatalog = {
   guest: [],
@@ -200,6 +199,7 @@ function applyUrlStateFromLocation() {
       slug: decodeURIComponent(parts.slice(1).join('/')),
     };
   } else if (parts.length >= 2 && parts[0] === 'episode') {
+    // backward compatibility for older shared links
     pendingUrlEpisodeId = parseEpisodeIdFromPathSegment(parts.slice(1).join('/'));
   }
 
@@ -208,6 +208,9 @@ function applyUrlStateFromLocation() {
 
   const pageParam = Number.parseInt(String(search.get('page') || ''), 10);
   currentPage = Number.isInteger(pageParam) && pageParam > 1 ? pageParam - 1 : 0;
+
+  const idParam = parseEpisodeIdFromPathSegment(search.get('id'));
+  if (idParam) pendingUrlEpisodeId = idParam;
 
   if (!pendingUrlFilter && !pendingUrlEpisodeId) {
     const guest = String(search.get('guest') || '').trim();
@@ -239,16 +242,14 @@ function syncUrlState({ push = false } = {}) {
   const active = getActiveFilterState();
 
   let path = '/';
-  if (currentModalEpisodeId) {
-    const slug = currentModalEpisodeSlug || `episode-${currentModalEpisodeId}`;
-    path = `/episode/${encodeURIComponent(slug)}-${currentModalEpisodeId}`;
-  } else if (active) {
+  if (active) {
     path = `/${active.type}/${encodeURIComponent(slugifyForUrl(active.value))}`;
   }
 
   const params = new URLSearchParams();
   if (currentQuery) params.set('q', currentQuery);
   if (currentPage > 0) params.set('page', String(currentPage + 1));
+  if (currentModalEpisodeId) params.set('id', String(currentModalEpisodeId));
 
   const query = params.toString();
   const next = `${path}${query ? `?${query}` : ''}`;
@@ -538,7 +539,6 @@ async function openModal(id, { pushHistory = true, syncUrl = true } = {}) {
   if (!Number.isInteger(episodeId) || episodeId <= 0) return;
 
   currentModalEpisodeId = episodeId;
-  currentModalEpisodeSlug = `episode-${episodeId}`;
   if (syncUrl) syncUrlState({ push: pushHistory });
 
   const backdrop = document.getElementById('modalBackdrop');
@@ -553,7 +553,6 @@ async function openModal(id, { pushHistory = true, syncUrl = true } = {}) {
       api(`/api/episodes/${episodeId}/suggestions?limit=30`).catch(() => null),
     ]);
 
-    currentModalEpisodeSlug = slugifyForUrl(ep.title || `episode-${episodeId}`) || `episode-${episodeId}`;
     if (syncUrl) syncUrlState({ push: false });
     const desc = ep.description || ep.summary || '';
     const spotifyUrl = `https://open.spotify.com/search/${encodeURIComponent((ep.title || '') + ' Kack Sachgeschichten')}/episodes`;
@@ -677,7 +676,6 @@ function closeModal({ syncUrl = true, push = false } = {}) {
 
   if (currentModalEpisodeId !== null) {
     currentModalEpisodeId = null;
-    currentModalEpisodeSlug = '';
     if (syncUrl) syncUrlState({ push });
   }
 }
