@@ -28,12 +28,13 @@ Zusätzlich werden gespeichert:
 - `GET /api/episodes/:id/suggestions/history`
   - liefert Änderungsverlauf (created/approved/rejected) chronologisch
 
-## Jarvis-Moderationsschnittstelle
+## Jarvis-Moderationsschnittstelle (intern)
 
-Diese Endpunkte sind über Bearer-Token geschützt.
+Diese Endpunkte sind intern und über Bearer-Token geschützt.
 
-- `GET /api/jarvis/suggestions/pending?limit=25`
-- `POST /api/jarvis/suggestions/:id/review`
+- `GET /internal/jarvis/suggestions/pending?limit=25`
+- `POST /internal/jarvis/suggestions/:id/review`
+- `GET /internal/jarvis/review-link?...` (signierter Telegram-Link)
 
 Body-Beispiel:
 
@@ -59,6 +60,21 @@ Der Jarvis-Token wird aus dem ersten gesetzten Wert genommen:
 7. `TG_BOT_TOKEN`
 
 Mehrere Tokens können kommasepariert gesetzt werden.
+
+## Telegram Push (neuer Vorschlag)
+
+Für aktive Push-Nachrichten an Jarvis werden benötigt:
+
+- `TELEGRAM_BOT_TOKEN`
+- `ALLOWED_CHAT_ID` (oder ein kompatibles Chat-ID-Feld)
+- Signier-Secret über z. B. `JARVIS_REVIEW_TOKEN` (oder `JARVIS_LINK_SECRET`)
+
+Dann wird bei jedem neuen Vorschlag eine Telegram-Nachricht mit
+
+- `✅ Approve`
+- `❌ Decline`
+
+als Klick-Buttons gesendet.
 
 ## Moderationsregeln
 

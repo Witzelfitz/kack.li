@@ -17,6 +17,7 @@ import { createParseService } from './services/parse-service.js';
 import { createEpisodesService } from './services/episodes-service.js';
 import { createWorksService } from './services/works-service.js';
 import { createSuggestionsService } from './services/suggestions-service.js';
+import { createJarvisNotifier } from './services/jarvis-notifier.js';
 import { createPublicController } from './controllers/public-controller.js';
 import { createAdminController } from './controllers/admin-controller.js';
 import { createJarvisController } from './controllers/jarvis-controller.js';
@@ -75,6 +76,7 @@ async function bootstrap() {
   });
 
   const worksService = createWorksService({ episodes });
+  const jarvisNotifier = createJarvisNotifier({ env: process.env, log });
   const suggestionsService = createSuggestionsService({
     episodes,
     suggestions,
@@ -92,6 +94,7 @@ async function bootstrap() {
     meta,
     worksService,
     suggestionsService,
+    jarvisNotifier,
     parseVersion: PARSE_VERSION,
     openaiEnabled: parseService.enabled,
     serializeEpisode,
@@ -135,6 +138,7 @@ async function bootstrap() {
   const jarvisController = createJarvisController({
     normalizeText,
     suggestionsService,
+    jarvisNotifier,
   });
 
   const jarvisRoutes = createJarvisRoutes({
@@ -164,6 +168,7 @@ async function bootstrap() {
       null,
       process.env.ADMIN_TOKEN ? 'info' : 'error'
     );
+    log('boot', jarvisNotifier.enabled ? 'Jarvis Telegram Push aktiviert ✓' : 'Jarvis Telegram Push deaktiviert (ENV unvollständig)');
 
     database.saveDb();
 

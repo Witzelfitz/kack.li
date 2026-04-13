@@ -4,6 +4,7 @@ export function createPublicController({
   meta,
   worksService,
   suggestionsService,
+  jarvisNotifier,
   parseVersion,
   openaiEnabled,
   serializeEpisode,
@@ -460,7 +461,7 @@ export function createPublicController({
       });
     },
 
-    createSuggestion(req, res) {
+    async createSuggestion(req, res) {
       const episodeId = parseInt(req.params.id, 10);
       const suggestionType = normalizeText(req.body?.type).toLowerCase();
       const value = normalizeText(req.body?.value);
@@ -509,6 +510,28 @@ export function createPublicController({
       });
 
       saveDb();
+
+      try {
+        const forwardedProto = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim();
+        const protocol = forwardedProto || req.protocol || 'https';
+        const host = req.get('host');
+        const requestBaseUrl = host ? `${protocol}://${host}` : '';
+
+        await jarvisNotifier?.notifySuggestionCreated({
+          suggestion: {
+            id: suggestionId,
+            episode_id: episodeId,
+            type: suggestionType,
+            value,
+            note,
+          },
+          episodeTitle: ep.title,
+          requestBaseUrl,
+        });
+      } catch (notifyError) {
+        log('jarvis-notify', `Telegram-Push fehlgeschlagen: ${notifyError.message}`, { suggestion_id: suggestionId }, 'error');
+      }
+
       return res.status(201).json({ ok: true, suggestion_id: suggestionId, status: 'pending' });
     },
   };
