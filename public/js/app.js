@@ -8,6 +8,9 @@ let currentFormat = '';
 let searchTimer  = null;
 let filtersReady = false;
 let pendingUrlFilter = null;
+let pendingUrlEpisodeId = null;
+let currentModalEpisodeId = null;
+let currentModalEpisodeSlug = '';
 
 const filterCatalog = {
   guest: [],
@@ -30,8 +33,17 @@ document.addEventListener('DOMContentLoaded', () => {
     filtersReady = true;
     applyPendingUrlFilter();
     updateFilterUI();
-    syncUrlState();
-    loadEpisodes();
+
+    const hasPendingEpisode = Number.isInteger(pendingUrlEpisodeId) && pendingUrlEpisodeId > 0;
+    if (!hasPendingEpisode) syncUrlState();
+
+    loadEpisodes().finally(() => {
+      if (hasPendingEpisode) {
+        const id = pendingUrlEpisodeId;
+        pendingUrlEpisodeId = null;
+        openModal(id, { pushHistory: false, syncUrl: false });
+      }
+    });
   });
 
   input.addEventListener('input', () => {
@@ -53,6 +65,14 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('clearBtn').classList.toggle('visible', currentQuery.length > 0);
     updateFilterUI();
     loadEpisodes();
+
+    if (Number.isInteger(pendingUrlEpisodeId) && pendingUrlEpisodeId > 0) {
+      const id = pendingUrlEpisodeId;
+      pendingUrlEpisodeId = null;
+      openModal(id, { pushHistory: false, syncUrl: false });
+    } else {
+      closeModal({ syncUrl: false });
+    }
   });
 
   document.getElementById('clearBtn').addEventListener('click', clearSearch);
@@ -82,7 +102,7 @@ function handleEpisodeCardClick(event) {
   const card = event.target.closest('.episode-card[data-episode-id]');
   if (!card) return;
   const id = Number.parseInt(card.dataset.episodeId, 10);
-  if (Number.isInteger(id) && id > 0) openModal(id);
+  if (Number.isInteger(id) && id > 0) openModal(id, { pushHistory: true, syncUrl: true });
 }
 
 function handlePaginationClick(event) {
@@ -148,6 +168,22 @@ function setActiveFilterState(type, value) {
   currentFormat = type === 'format' ? value : '';
 }
 
+function parseEpisodeIdFromPathSegment(value) {
+  const raw = decodeURIComponent(String(value || '').trim());
+  if (!raw) return null;
+
+  if (/^\d+$/.test(raw)) {
+    const id = Number.parseInt(raw, 10);
+    return Number.isInteger(id) && id > 0 ? id : null;
+  }
+
+  const match = raw.match(/(?:^|-)(\d+)$/);
+  if (!match) return null;
+
+  const id = Number.parseInt(match[1], 10);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
 function applyUrlStateFromLocation() {
   const path = window.location.pathname.replace(/^\/+|\/+$/g, '');
   const parts = path ? path.split('/') : [];
@@ -156,12 +192,15 @@ function applyUrlStateFromLocation() {
   currentTopic = '';
   currentFormat = '';
   pendingUrlFilter = null;
+  pendingUrlEpisodeId = null;
 
   if (parts.length >= 2 && ['guest', 'topic', 'format'].includes(parts[0])) {
     pendingUrlFilter = {
       type: parts[0],
       slug: decodeURIComponent(parts.slice(1).join('/')),
     };
+  } else if (parts.length >= 2 && parts[0] === 'episode') {
+    pendingUrlEpisodeId = parseEpisodeIdFromPathSegment(parts.slice(1).join('/'));
   }
 
   const search = new URLSearchParams(window.location.search || '');
@@ -170,7 +209,7 @@ function applyUrlStateFromLocation() {
   const pageParam = Number.parseInt(String(search.get('page') || ''), 10);
   currentPage = Number.isInteger(pageParam) && pageParam > 1 ? pageParam - 1 : 0;
 
-  if (!pendingUrlFilter) {
+  if (!pendingUrlFilter && !pendingUrlEpisodeId) {
     const guest = String(search.get('guest') || '').trim();
     const topic = String(search.get('topic') || '').trim();
     const format = String(search.get('format') || '').trim();
@@ -198,7 +237,14 @@ function applyPendingUrlFilter() {
 
 function syncUrlState({ push = false } = {}) {
   const active = getActiveFilterState();
-  const path = active ? `/${active.type}/${encodeURIComponent(slugifyForUrl(active.value))}` : '/';
+
+  let path = '/';
+  if (currentModalEpisodeId) {
+    const slug = currentModalEpisodeSlug || `episode-${currentModalEpisodeId}`;
+    path = `/episode/${encodeURIComponent(slug)}-${currentModalEpisodeId}`;
+  } else if (active) {
+    path = `/${active.type}/${encodeURIComponent(slugifyForUrl(active.value))}`;
+  }
 
   const params = new URLSearchParams();
   if (currentQuery) params.set('q', currentQuery);
@@ -487,7 +533,14 @@ async function handleSuggestionSubmit(event) {
   }
 }
 
-async function openModal(id) {
+async function openModal(id, { pushHistory = true, syncUrl = true } = {}) {
+  const episodeId = Number.parseInt(id, 10);
+  if (!Number.isInteger(episodeId) || episodeId <= 0) return;
+
+  currentModalEpisodeId = episodeId;
+  currentModalEpisodeSlug = `episode-${episodeId}`;
+  if (syncUrl) syncUrlState({ push: pushHistory });
+
   const backdrop = document.getElementById('modalBackdrop');
   const body     = document.getElementById('modalBody');
   backdrop.classList.add('open');
@@ -496,9 +549,12 @@ async function openModal(id) {
 
   try {
     const [ep, suggestionFlow] = await Promise.all([
-      api(`/api/episodes/${id}`),
-      api(`/api/episodes/${id}/suggestions?limit=30`).catch(() => null),
+      api(`/api/episodes/${episodeId}`),
+      api(`/api/episodes/${episodeId}/suggestions?limit=30`).catch(() => null),
     ]);
+
+    currentModalEpisodeSlug = slugifyForUrl(ep.title || `episode-${episodeId}`) || `episode-${episodeId}`;
+    if (syncUrl) syncUrlState({ push: false });
     const desc = ep.description || ep.summary || '';
     const spotifyUrl = `https://open.spotify.com/search/${encodeURIComponent((ep.title || '') + ' Kack Sachgeschichten')}/episodes`;
 
@@ -615,9 +671,15 @@ function renderParsedData(ep) {
   return html + '</div>';
 }
 
-function closeModal() {
+function closeModal({ syncUrl = true, push = false } = {}) {
   document.getElementById('modalBackdrop').classList.remove('open');
   document.body.style.overflow = '';
+
+  if (currentModalEpisodeId !== null) {
+    currentModalEpisodeId = null;
+    currentModalEpisodeSlug = '';
+    if (syncUrl) syncUrlState({ push });
+  }
 }
 
 document.addEventListener('keydown', (event) => {
