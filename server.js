@@ -49,6 +49,22 @@ const DB_FILE = path.join(__dirname, 'episodes.db');
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || process.env.OPEN_API_KEY;
 const openai = OPENAI_API_KEY ? new OpenAI({ apiKey: OPENAI_API_KEY }) : null;
 
+function resolveTrustProxy(value) {
+  const raw = String(value ?? '').trim();
+  if (!raw) return 1;
+
+  const lower = raw.toLowerCase();
+  if (['true', 'yes', 'on'].includes(lower)) return 1;
+  if (['false', 'no', 'off', '0'].includes(lower)) return false;
+
+  const asNumber = Number.parseInt(raw, 10);
+  if (Number.isInteger(asNumber) && asNumber >= 0) return asNumber;
+
+  return raw;
+}
+
+const TRUST_PROXY = resolveTrustProxy(process.env.TRUST_PROXY);
+
 async function bootstrap() {
   const database = await createDatabase(DB_FILE);
   const { episodes, logs, meta, suggestions } = createRepositories(database);
@@ -159,6 +175,7 @@ async function bootstrap() {
     adminRoutes,
     jarvisRoutes,
     staticDir: path.join(__dirname, 'public'),
+    trustProxy: TRUST_PROXY,
   });
 
   cron.schedule('0 3 * * *', async () => {
@@ -175,6 +192,7 @@ async function bootstrap() {
       process.env.ADMIN_TOKEN ? 'info' : 'error'
     );
     log('boot', jarvisNotifier.enabled ? 'Jarvis Telegram Push aktiviert ✓' : 'Jarvis Telegram Push deaktiviert (ENV unvollständig)');
+    log('boot', `trust proxy = ${TRUST_PROXY}`);
 
     database.saveDb();
 

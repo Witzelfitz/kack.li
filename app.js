@@ -7,8 +7,13 @@ export function createApp({
   adminRoutes,
   jarvisRoutes,
   staticDir,
+  trustProxy,
 }) {
   const app = express();
+
+  if (trustProxy !== undefined) {
+    app.set('trust proxy', trustProxy);
+  }
 
   app.use(express.json());
   app.use(publicCors);

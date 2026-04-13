@@ -125,7 +125,7 @@
       <div class="base-url-row">
         <span class="base-url-badge" id="baseUrl">https://kack.li</span>
         <span class="info-pill">JSON</span>
-        <span class="info-pill">100 REQ / 15 MIN</span>
+        <span class="info-pill">300 REQ / MIN (default)</span>
         <span class="info-pill">CORS ENABLED</span>
       </div>
 
@@ -136,18 +136,18 @@
 
       <section class="rate-box">
         <div class="rate-title">RATE LIMITS &amp; 429-VERHALTEN</div>
-        <p class="rate-copy">Alle öffentlichen API-Requests unter <code style="font-family:var(--font-mono);font-size:11px;background:var(--bg3);padding:1px 5px">/api/*</code> sind auf <strong>100 Requests pro 15 Minuten</strong> limitiert. Die Antwort enthält zur Steuerung immer diese Header:</p>
+        <p class="rate-copy">Alle öffentlichen API-Requests unter <code style="font-family:var(--font-mono);font-size:11px;background:var(--bg3);padding:1px 5px">/api/*</code> sind standardmässig auf <strong>300 Requests pro Minute</strong> limitiert. Die Antwort enthält zur Steuerung immer diese Header. Limits sind per ENV konfigurierbar.</p>
         <ul class="rate-list">
-          <li><code>RateLimit-Policy</code> – aktives Limitfenster (z. B. <code>100;w=900</code>)</li>
+          <li><code>RateLimit-Policy</code> – aktives Limitfenster (z. B. <code>300;w=60</code>)</li>
           <li><code>RateLimit-Limit</code> – maximale Requests im Fenster</li>
           <li><code>RateLimit-Remaining</code> – verbleibende Requests</li>
           <li><code>RateLimit-Reset</code> – Sekunden bis Reset</li>
         </ul>
         <pre class="rate-pre">Beispiel (200):
-RateLimit-Policy: 100;w=900
-RateLimit-Limit: 100
-RateLimit-Remaining: 98
-RateLimit-Reset: 742
+RateLimit-Policy: 300;w=60
+RateLimit-Limit: 300
+RateLimit-Remaining: 298
+RateLimit-Reset: 42
 
 Beispiel (429):
 HTTP 429 Too Many Requests
