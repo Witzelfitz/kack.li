@@ -216,7 +216,7 @@ function renderEpisodes(episodes, total) {
   }
 
   grid.innerHTML = episodes.map(ep => {
-    const guests = tryJson(ep.guests_json).slice(0, 2);
+    const guests = getArrayField(ep.guests, ep.guests_json).slice(0, 2);
     const episodeId = Number.parseInt(ep.id, 10) || 0;
     return `
     <div class="episode-card" data-episode-id="${episodeId}">
@@ -385,9 +385,9 @@ async function openModal(id) {
 }
 
 function renderParsedData(ep) {
-  const guests   = tryJson(ep.guests_json);
-  const chapters = tryJson(ep.chapters_json);
-  const topics   = tryJson(ep.topics_json);
+  const guests   = getArrayField(ep.guests, ep.guests_json);
+  const chapters = getArrayField(ep.chapters, ep.chapters_json);
+  const topics   = getArrayField(ep.topics, ep.topics_json);
   if (!guests.length && !chapters.length && !topics.length) return '';
 
   let html = '<div class="parsed-data">';
@@ -452,6 +452,11 @@ function clearSearch() {
 function tryJson(str) {
   if (!str) return [];
   try { const v = JSON.parse(str); return Array.isArray(v) ? v : []; } catch { return []; }
+}
+
+function getArrayField(value, fallbackJson = null) {
+  if (Array.isArray(value)) return value;
+  return tryJson(fallbackJson);
 }
 
 function formatDate(str, long = false) {
