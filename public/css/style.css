@@ -746,7 +746,7 @@ main {
 }
 
 .suggestion-status.success {
-  color: var(--accent);
+  color: #22c55e;
 }
 
 .suggestion-status.error {
