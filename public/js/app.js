@@ -221,7 +221,6 @@ function renderEpisodes(episodes, total) {
     return `
     <div class="episode-card" data-episode-id="${episodeId}">
       <div class="card-meta">
-        ${ep.episode_num ? `<span class="card-num">#${String(ep.episode_num).padStart(3,'0')}</span>` : ''}
         <span class="card-date">${formatDate(ep.pub_date)}</span>
         ${ep.duration ? `<span class="card-dot">·</span><span class="card-duration">${formatDuration(ep.duration)}</span>` : ''}
       </div>
@@ -364,7 +363,6 @@ async function openModal(id) {
     const spotifyUrl = `https://open.spotify.com/search/${encodeURIComponent((ep.title || '') + ' Kack Sachgeschichten')}/episodes`;
 
     body.innerHTML = `
-      ${ep.episode_num ? `<div class="modal-num">Episode #${String(ep.episode_num).padStart(3,'0')}</div>` : ''}
       <h2 class="modal-title">${escHtml(ep.title)}</h2>
       ${ep.format_name ? `<div class="modal-format">${escHtml(ep.format_name)}</div>` : ''}
       ${ep.film_title ? `<div class="modal-film">↳ ${escHtml(ep.film_title)}</div>` : ''}

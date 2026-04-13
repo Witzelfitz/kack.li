@@ -15,6 +15,10 @@
     .base-url-badge { font-family: var(--font-mono); font-size: 13px; color: var(--text); background: var(--bg2); border: 1px solid var(--border2); padding: 7px 14px; }
     .info-pill { font-family: var(--font-mono); font-size: 10px; color: var(--text3); border: 1px solid var(--border); padding: 3px 10px; letter-spacing: 0.06em; }
 
+    .change-box { background: rgba(233,0,20,0.06); border: 1px solid rgba(233,0,20,0.22); padding: 12px 14px; margin-bottom: 18px; }
+    .change-title { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 6px; }
+    .change-copy { margin: 0; font-size: 12px; color: var(--text2); line-height: 1.6; }
+
     .rate-box { background: var(--bg2); border: 1px solid var(--border); padding: 14px 16px; margin-bottom: 28px; }
     .rate-title { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; color: var(--text); margin-bottom: 8px; }
     .rate-copy { font-size: 12px; color: var(--text2); line-height: 1.65; margin: 0 0 10px; }
@@ -124,6 +128,11 @@
         <span class="info-pill">100 REQ / 15 MIN</span>
         <span class="info-pill">CORS ENABLED</span>
       </div>
+
+      <section class="change-box">
+        <div class="change-title">BREAKING CHANGE · 2026-04-13</div>
+        <p class="change-copy">Das Feld <code style="font-family:var(--font-mono);font-size:11px;background:var(--bg3);padding:1px 5px">episode_num</code> wurde als nicht verlässlich eingestuft und ist ab sofort aus den API-Responses entfernt.</p>
+      </section>
 
       <section class="rate-box">
         <div class="rate-title">RATE LIMITS &amp; 429-VERHALTEN</div>
