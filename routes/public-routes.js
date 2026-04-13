@@ -8,6 +8,8 @@ export function createPublicRoutes({ controller, suggestionLimiter }) {
   router.get('/guests', controller.listGuests);
   router.get('/formats', controller.listFormats);
   router.get('/topics', controller.listTopics);
+  router.get('/works', controller.listWorks);
+  router.get('/works/:id', controller.getWorkById);
   router.get('/status', controller.getStatus);
   router.post('/episodes/:id/suggestions', suggestionLimiter, controller.createSuggestion);
 

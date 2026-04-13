@@ -15,6 +15,7 @@ import { publicLimiter, suggestionLimiter } from './middleware/rate-limiters.js'
 import { createLogger } from './services/logger.js';
 import { createParseService } from './services/parse-service.js';
 import { createEpisodesService } from './services/episodes-service.js';
+import { createWorksService } from './services/works-service.js';
 import { createPublicController } from './controllers/public-controller.js';
 import { createAdminController } from './controllers/admin-controller.js';
 import { createPublicRoutes } from './routes/public-routes.js';
@@ -70,10 +71,13 @@ async function bootstrap() {
     parseVersion: PARSE_VERSION,
   });
 
+  const worksService = createWorksService({ episodes });
+
   const publicController = createPublicController({
     episodes,
     suggestions,
     meta,
+    worksService,
     parseVersion: PARSE_VERSION,
     openaiEnabled: parseService.enabled,
     serializeEpisode,

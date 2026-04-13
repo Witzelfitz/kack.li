@@ -72,6 +72,14 @@ export function createRepositories({ dbAll, dbGet, dbRun }) {
       return dbAll('SELECT topics_json, manual_topics_json FROM episodes');
     },
 
+    worksRows() {
+      return dbAll(
+        `SELECT id, title, pub_date, pub_ts, film_title, manual_film_title
+         FROM episodes
+         ORDER BY pub_ts DESC, id DESC`
+      );
+    },
+
     parseIds(parseVersion, force = false) {
       return force
         ? dbAll('SELECT id FROM episodes ORDER BY pub_ts ASC')

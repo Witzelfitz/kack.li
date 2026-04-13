@@ -30,5 +30,7 @@ export const PUBLIC_CORS_PATTERNS = [
   /^\/api\/guests$/,
   /^\/api\/formats$/,
   /^\/api\/topics$/,
+  /^\/api\/works$/,
+  /^\/api\/works\/work-[a-z0-9-]+$/,
   /^\/api\/status$/,
 ];

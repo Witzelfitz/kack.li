@@ -2,6 +2,7 @@ export function createPublicController({
   episodes,
   suggestions,
   meta,
+  worksService,
   parseVersion,
   openaiEnabled,
   serializeEpisode,
@@ -208,6 +209,42 @@ export function createPublicController({
           }))
           .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'de'))
       );
+    },
+
+    listWorks(req, res) {
+      const details = [];
+
+      const limitResult = parseIntegerField(req.query.limit, 'limit', { min: 1, max: 200 });
+      if (!limitResult.ok) details.push(limitResult.error);
+
+      const offsetResult = parseIntegerField(req.query.offset, 'offset', { min: 0, max: Number.MAX_SAFE_INTEGER });
+      if (!offsetResult.ok) details.push(offsetResult.error);
+
+      const qResult = parseStringFilter(req.query.q, 'q', { maxLength: 200 });
+      if (!qResult.ok) details.push(qResult.error);
+
+      if (details.length) return validationError(res, details);
+
+      const limit = limitResult.provided ? limitResult.value : 50;
+      const offset = offsetResult.provided ? offsetResult.value : 0;
+      const q = qResult.value;
+
+      return res.json(worksService.listWorks({ q, limit, offset }));
+    },
+
+    getWorkById(req, res) {
+      const workId = normalizeText(req.params.id);
+      if (!workId) {
+        return res.status(400).json({
+          code: 'VALIDATION_ERROR',
+          message: 'Ungültige Work-ID.',
+          details: [{ field: 'id', issue: 'required' }],
+        });
+      }
+
+      const work = worksService.getWorkById(workId);
+      if (!work) return res.status(404).json({ error: 'Nicht gefunden' });
+      return res.json(work);
     },
 
     getStatus(_req, res) {
