@@ -1,0 +1,8 @@
+FROM ubuntu:24.04
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libstdc++6 && apt-get clean
+COPY cpu-runtime/ollama /usr/bin/ollama
+COPY cpu-runtime/lib/ /usr/lib/ollama/
+ENV LD_LIBRARY_PATH=/usr/lib/ollama
+EXPOSE 11434
+ENTRYPOINT ["/usr/bin/ollama"]
+CMD ["serve"]

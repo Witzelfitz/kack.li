@@ -27,3 +27,4 @@ service.conf
 # Derived private indexes and manually reviewed entity decisions (back up on deploy)
 data/
 deploy/embeddings/auth.htpasswd
+deploy/embeddings/cpu-runtime/
