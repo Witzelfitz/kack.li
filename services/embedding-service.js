@@ -6,7 +6,7 @@ export const EMBEDDING_PROMPTS = {
   cluster: 'task: clustering | query: ',
 };
 
-export function createEmbeddingService({ baseUrl, model, timeoutMs = 3000, fetchImpl = fetch } = {}) {
+export function createEmbeddingService({ baseUrl, model, authorization, timeoutMs = 3000, fetchImpl = fetch } = {}) {
   const cache = new Map();
   const pending = new Map();
   const enabled = Boolean(baseUrl && model);
@@ -15,7 +15,7 @@ export function createEmbeddingService({ baseUrl, model, timeoutMs = 3000, fetch
     if (!enabled) throw new Error('Embeddings not configured');
     if (!EMBEDDING_PROMPTS[task]) throw new Error('Unknown embedding task');
     const response = await fetchImpl(`${baseUrl.replace(/\/$/, '')}/api/embed`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...(authorization ? { Authorization: authorization } : {}) },
       body: JSON.stringify({ model, input: texts.map((text) => EMBEDDING_PROMPTS[task] + text), truncate: true }),
       signal: AbortSignal.timeout(timeoutMs),
     });
@@ -38,7 +38,8 @@ export function createEmbeddingService({ baseUrl, model, timeoutMs = 3000, fetch
     return job;
   }
   async function identity() {
-    const response = await fetchImpl(`${baseUrl.replace(/\/$/, '')}/api/tags`, { signal: AbortSignal.timeout(timeoutMs) });
+    const response = await fetchImpl(`${baseUrl.replace(/\/$/, '')}/api/tags`, {
+      headers: authorization ? { Authorization: authorization } : {}, signal: AbortSignal.timeout(timeoutMs) });
     if (!response.ok) throw new Error(`Embedding model discovery HTTP ${response.status}`);
     const data = await response.json();
     const item = data.models?.find((x) => x.name === model || x.name === `${model}:latest`);

@@ -138,6 +138,18 @@ test('embedding requests use task prompts, validate responses and time out', asy
     fetchImpl: async (_url, { signal }) => new Promise((_resolve, reject) => signal.addEventListener('abort', () => reject(signal.reason))) });
   await assert.rejects(() => timeout.query('x'), { name: 'TimeoutError' });
 });
+test('remote embedding credentials cover both discovery and encoding, never the request body', async () => {
+  const seen = [];
+  const encoder = createEmbeddingService({ baseUrl: 'https://encoder.example', model: 'fixture', authorization: 'Basic test-credential',
+    fetchImpl: async (url, options) => {
+      seen.push({ url, options });
+      return { ok: true, json: async () => url.endsWith('/api/tags') ? { models: [{ name: 'fixture', digest: 'v1' }] } : { embeddings: [[1, 0]] } };
+    } });
+  assert.equal((await encoder.identity()).digest, 'v1');
+  await encoder.query('Test');
+  assert.equal(seen.length, 2);
+  for (const item of seen) { assert.equal(item.options.headers.Authorization, 'Basic test-credential'); assert.ok(!item.options.body?.includes('test-credential')); }
+});
 test('cluster review is protected, requires reasoning, persists and is reversible without editing raw data', async () => {
   assert.equal((await get('/api/clusters')).status, 401);
   assert.equal(clusters.list().total, 1);

@@ -113,6 +113,7 @@ async function bootstrap() {
   }
   const searchService = createSearchService({ episodes, log,
     embedder: createEmbeddingService({ baseUrl: process.env.EMBEDDING_BASE_URL, model: process.env.EMBEDDING_MODEL,
+      authorization: process.env.EMBEDDING_AUTHORIZATION,
       timeoutMs: Number(process.env.EMBEDDING_TIMEOUT_MS) || 3000 }),
     indexPath: process.env.SEARCH_INDEX_PATH || path.join(__dirname, 'data/search-index.json'),
   });

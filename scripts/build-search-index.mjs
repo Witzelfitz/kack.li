@@ -12,6 +12,7 @@ import { createEmbeddingService } from '../services/embedding-service.js';
 const root = fileURLToPath(new URL('..', import.meta.url));
 const output = path.resolve(process.env.SEARCH_INDEX_PATH || path.join(root, 'data/search-index.json'));
 const embedder = createEmbeddingService({ baseUrl: process.env.EMBEDDING_BASE_URL || 'http://127.0.0.1:11434',
+  authorization: process.env.EMBEDDING_AUTHORIZATION,
   model: process.env.EMBEDDING_MODEL || 'embeddinggemma', timeoutMs: 120000 });
 const identity = await embedder.identity();
 const database = await createDatabase(process.env.DB_FILE || path.join(root, 'episodes.db'));

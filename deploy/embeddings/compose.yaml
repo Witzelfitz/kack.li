@@ -1,0 +1,51 @@
+name: kack-embeddings
+services:
+  ollama:
+    image: ollama/ollama:0.40.16
+    restart: unless-stopped
+    mem_limit: 896m
+    memswap_limit: 896m
+    cpus: 1.0
+    environment:
+      OLLAMA_HOST: 0.0.0.0:11434
+      OLLAMA_KEEP_ALIVE: -1
+      OLLAMA_NUM_PARALLEL: 1
+      OLLAMA_MAX_LOADED_MODELS: 1
+    volumes:
+      - models:/root/.ollama
+    networks: [encoder]
+    healthcheck:
+      test: [CMD, ollama, list]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  gateway:
+    image: nginx:1.28-alpine
+    restart: unless-stopped
+    mem_limit: 32m
+    memswap_limit: 32m
+    cpus: 0.25
+    read_only: true
+    entrypoint: [nginx, -g, "daemon off;"]
+    tmpfs: [/tmp]
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./auth.htpasswd:/run/auth.htpasswd:ro
+    networks: [encoder, coolify]
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: coolify
+      traefik.http.routers.kack-embeddings.rule: Host(`${EMBEDDING_HOST}`)
+      traefik.http.routers.kack-embeddings.entrypoints: https
+      traefik.http.routers.kack-embeddings.tls: "true"
+      traefik.http.routers.kack-embeddings.tls.certresolver: letsencrypt
+      traefik.http.services.kack-embeddings.loadbalancer.server.port: "8080"
+    depends_on:
+      ollama:
+        condition: service_healthy
+networks:
+  encoder:
+  coolify:
+    external: true
+volumes:
+  models:
