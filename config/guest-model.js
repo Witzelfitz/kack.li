@@ -26,6 +26,10 @@ export const GUEST_MODEL = [
       'Claudiu Mark Draghici, Schauspieler',
       'Claudiu Mark Draghici (Schauspieler, Sprecher, Comedian, Kacki-Stammgast)',
       'Claudiu Mark Draghici (Schauspieler, Comedian und Moderator)',
+      'Claudiu Mark Draghici Schauspieler',
+      'Claudiu Mark Draghici Schauspieler, Sprecher und echter Transilvanier',
+      'Claudiu Mark Draghici Schauspieler, Synchronsprecher, Kack & Sach Stammgast',
+      'Claudiu Mark Draghici Schauspieler, Synchronsprecher, Transilvanier',
     ],
   },
   {

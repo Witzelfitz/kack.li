@@ -1,4 +1,6 @@
 export function createAdminController({
+  clusterService,
+  rebuildSearchIndex,
   episodes,
   logs,
   suggestions,
@@ -12,6 +14,23 @@ export function createAdminController({
   suggestionsService,
 }) {
   return {
+    async reindexSearch(_req, res) {
+      try { return res.json(await rebuildSearchIndex()); }
+      catch { return res.status(503).json({ error: 'Index konnte nicht aktualisiert werden. Embedding-Dienst und Serverlogs prüfen.' }); }
+    },
+    listClusters(req, res, next) {
+      const type = req.query.type || 'topic';
+      if (!['topic', 'guest', 'work'].includes(type)) return res.status(400).json({ error: 'Ungültiger Typ.' });
+      try { return res.json(clusterService.list({ type, limit: Math.min(Math.max(Number(req.query.limit) || 50, 1), 150) })); }
+      catch (err) { return next(err); }
+    },
+    reviewCluster(req, res, next) {
+      try {
+        const result = clusterService.review(req.params.id, req.body || {});
+        return res.status(result.status || 200).json(result);
+      } catch (err) { return next(err); }
+    },
+    clusterHistory(_req, res) { return res.json({ decisions: clusterService.history() }); },
     listLogs(req, res) {
       const { limit = 100, event, level } = req.query;
       const lim = Math.min(parseInt(limit, 10) || 100, 500);

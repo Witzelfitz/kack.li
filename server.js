@@ -4,6 +4,8 @@ import path from 'path';
 import cron from 'node-cron';
 import OpenAI from 'openai';
 import { fileURLToPath } from 'url';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 
 import { PARSE_VERSION, PUBLIC_CORS_PATTERNS } from './config/constants.js';
 import { detectEpisodeFormat } from './lib/episode-utils.js';
@@ -25,6 +27,9 @@ import { createPublicRoutes } from './routes/public-routes.js';
 import { createAdminRoutes } from './routes/admin-routes.js';
 import { createJarvisRoutes } from './routes/jarvis-routes.js';
 import { createApp } from './app.js';
+import { createSearchService } from './services/search-service.js';
+import { createEmbeddingService } from './services/embedding-service.js';
+import { createClusterService } from './services/cluster-service.js';
 import {
   getEffectiveFilmTitle,
   getMergedGuests,
@@ -94,6 +99,23 @@ async function bootstrap() {
   });
 
   const worksService = createWorksService({ episodes });
+  let indexJob = null;
+  function rebuildSearchIndex() {
+    if (!process.env.EMBEDDING_BASE_URL || !process.env.EMBEDDING_MODEL) throw new Error('Embedding service not configured');
+    if (!indexJob) {
+      log('search-index', 'Index-Aktualisierung gestartet');
+      indexJob = promisify(execFile)(process.execPath, [path.join(__dirname, 'scripts/build-search-index.mjs')],
+        { cwd: __dirname, timeout: 600000, maxBuffer: 2 * 1024 * 1024 })
+        .then(() => { log('search-index', 'Index-Aktualisierung abgeschlossen'); return { ok: true }; })
+        .finally(() => { indexJob = null; });
+    }
+    return indexJob;
+  }
+  const searchService = createSearchService({ episodes, log,
+    embedder: createEmbeddingService({ baseUrl: process.env.EMBEDDING_BASE_URL, model: process.env.EMBEDDING_MODEL,
+      timeoutMs: Number(process.env.EMBEDDING_TIMEOUT_MS) || 3000 }),
+    indexPath: process.env.SEARCH_INDEX_PATH || path.join(__dirname, 'data/search-index.json'),
+  });
   const jarvisNotifier = createJarvisNotifier({ env: process.env, log });
   const suggestionsService = createSuggestionsService({
     episodes,
@@ -111,6 +133,7 @@ async function bootstrap() {
   });
 
   const publicController = createPublicController({
+    searchService,
     episodes,
     suggestions,
     meta,
@@ -134,6 +157,9 @@ async function bootstrap() {
   });
 
   const adminController = createAdminController({
+    rebuildSearchIndex,
+    searchService,
+    clusterService: createClusterService({ episodes, indexPath: process.env.SEARCH_INDEX_PATH || path.join(__dirname, 'data/search-index.json') }),
     episodes,
     logs,
     suggestions,
@@ -180,9 +206,13 @@ async function bootstrap() {
 
   cron.schedule('0 3 * * *', async () => {
     await episodesService.runNightlyJob();
+    if (process.env.SEARCH_AUTO_INDEX === '1') {
+      try { await rebuildSearchIndex(); }
+      catch (err) { log('search-index', `Index-Aktualisierung fehlgeschlagen: ${err.message}`, null, 'error'); }
+    }
   });
 
-  app.listen(PORT, () => {
+  app.listen(PORT, process.env.HOST || '0.0.0.0', () => {
     log('boot', `Server gestartet auf Port ${PORT}`, { port: PORT });
     log('boot', parseService.enabled ? 'OpenAI API key gesetzt ✓' : 'Kein OpenAI API key – Parse-Funktionen deaktiviert');
     log(

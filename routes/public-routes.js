@@ -5,6 +5,7 @@ export function createPublicRoutes({ controller, suggestionLimiter }) {
 
   router.get('/episodes', controller.listEpisodes);
   router.get('/episodes/:id', controller.getEpisodeById);
+  router.get('/episodes/:id/related', controller.getRelatedEpisodes);
   router.get('/episodes/:id/suggestions', controller.listEpisodeSuggestions);
   router.get('/episodes/:id/suggestions/history', controller.getEpisodeSuggestionHistory);
   router.get('/guests', controller.listGuests);

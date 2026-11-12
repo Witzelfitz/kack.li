@@ -1,5 +1,8 @@
 export function createRepositories({ dbAll, dbGet, dbRun }) {
   const episodes = {
+    searchRows() {
+      return dbAll('SELECT * FROM episodes ORDER BY pub_ts DESC, id DESC');
+    },
     count(where = '1=1', params = []) {
       return dbGet(`SELECT COUNT(*) as c FROM episodes WHERE ${where}`, params)?.c || 0;
     },

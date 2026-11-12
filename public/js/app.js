@@ -12,6 +12,8 @@ let pendingUrlEpisodeId = null;
 let pendingUrlEpisodeTitleSlug = '';
 let currentModalEpisodeId = null;
 let currentModalEpisodeTitleSlug = '';
+let modalRequest = 0;
+let episodeRequest = 0;
 
 const filterCatalog = {
   guest: [],
@@ -75,6 +77,10 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('pagination').addEventListener('click', handlePaginationClick);
   document.getElementById('modalBackdrop').addEventListener('click', closeModal);
   document.getElementById('modalBody').addEventListener('click', handleSetFilterClick);
+  document.getElementById('modalBody').addEventListener('click', (event) => {
+    const button = event.target.closest('[data-related-episode]');
+    if (button) openModal(button.dataset.relatedEpisode);
+  });
   document.getElementById('modalBody').addEventListener('submit', handleSuggestionSubmit);
   document.querySelector('.modal-close').addEventListener('click', closeModal);
   modal.addEventListener('click', (event) => event.stopPropagation());
@@ -372,13 +378,14 @@ function clearFilters() {
 
 // ── Load Episodes ─────────────────────────────────────────────────────────────
 async function loadEpisodes() {
+  const request = ++episodeRequest;
   const grid = document.getElementById('episodeGrid');
   grid.innerHTML = `<div class="loading-state"><div class="spinner"></div><p>LADE EPISODEN…</p></div>`;
 
   const params = new URLSearchParams({
     limit:  PAGE_SIZE,
     offset: currentPage * PAGE_SIZE,
-    ...(currentQuery ? { q: currentQuery } : {}),
+    ...(currentQuery ? { q: currentQuery, sort: 'relevance' } : {}),
     ...(currentGuest ? { guest: currentGuest } : {}),
     ...(currentTopic ? { topic: currentTopic } : {}),
     ...(currentFormat ? { format: currentFormat } : {}),
@@ -386,10 +393,12 @@ async function loadEpisodes() {
 
   try {
     const data = await api(`/api/episodes?${params}`);
+    if (request !== episodeRequest) return;
     renderEpisodes(data.episodes, data.total);
     renderPagination(data.total);
   } catch (err) {
-    grid.innerHTML = `<div class="empty-state"><p>⚠ Fehler beim Laden: ${err.message}</p></div>`;
+    if (request !== episodeRequest) return;
+    grid.innerHTML = `<div class="empty-state"><p>⚠ Fehler beim Laden: ${escHtml(err.message)}</p></div>`;
   }
 }
 
@@ -560,6 +569,7 @@ async function handleSuggestionSubmit(event) {
 async function openModal(id, { pushHistory = true, syncUrl = true } = {}) {
   const episodeId = Number.parseInt(id, 10);
   if (!Number.isInteger(episodeId) || episodeId <= 0) return;
+  const request = ++modalRequest;
 
   currentModalEpisodeId = episodeId;
   currentModalEpisodeTitleSlug = '';
@@ -571,10 +581,12 @@ async function openModal(id, { pushHistory = true, syncUrl = true } = {}) {
   document.body.style.overflow = 'hidden';
 
   try {
-    const [ep, suggestionFlow] = await Promise.all([
+    const [ep, suggestionFlow, related] = await Promise.all([
       api(`/api/episodes/${episodeId}`),
       api(`/api/episodes/${episodeId}/suggestions?limit=30`).catch(() => null),
+      api(`/api/episodes/${episodeId}/related`).catch(() => null),
     ]);
+    if (request !== modalRequest) return;
 
     currentModalEpisodeTitleSlug = slugifyForUrl(ep.title || '') || `episode-${episodeId}`;
     if (syncUrl) syncUrlState({ push: pushHistory });
@@ -591,6 +603,7 @@ async function openModal(id, { pushHistory = true, syncUrl = true } = {}) {
       </div>
       ${renderModalDescription(desc)}
       ${renderParsedData(ep)}
+      ${renderRelatedEpisodes(related)}
       ${renderSuggestionForm(ep.id)}
       ${renderSuggestionFlow(suggestionFlow)}
       <div class="modal-actions">
@@ -598,8 +611,15 @@ async function openModal(id, { pushHistory = true, syncUrl = true } = {}) {
       </div>
     `;
   } catch (err) {
-    body.innerHTML = `<p style="color:var(--accent);padding:20px">Fehler: ${err.message}</p>`;
+    if (request !== modalRequest) return;
+    body.innerHTML = `<p style="color:var(--accent);padding:20px">Fehler: ${escHtml(err.message)}</p>`;
   }
+}
+
+function renderRelatedEpisodes(data) {
+  if (!data?.episodes?.length) return '';
+  return `<section class="parsed-section related-episodes"><h3 class="parsed-label">DAS KÖNNTE DICH AUCH INTERESSIEREN</h3>
+    ${data.episodes.map((ep) => `<button class="related-episode" data-related-episode="${Number(ep.id)}">${escHtml(ep.title)}</button>`).join('')}</section>`;
 }
 
 function renderFilmLine(ep) {
@@ -695,6 +715,7 @@ function renderParsedData(ep) {
 }
 
 function closeModal({ syncUrl = true, push = false } = {}) {
+  modalRequest++;
   document.getElementById('modalBackdrop').classList.remove('open');
   document.body.style.overflow = '';
 

@@ -961,3 +961,7 @@ main {
   .episode-grid { grid-template-columns: 1fr; }
   .suggestion-row { grid-template-columns: 1fr; }
 }
+.related-episodes { margin-top: 24px; }
+.related-episode { display: block; width: 100%; text-align: left; padding: 12px 14px; margin: 8px 0;
+  color: var(--text, #eee); background: transparent; border: 1px solid var(--border, #444); border-radius: 8px; cursor: pointer; font: inherit; }
+.related-episode:hover, .related-episode:focus-visible { border-color: var(--accent); }

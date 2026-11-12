@@ -27,6 +27,7 @@ export const FORMAT_DEFINITIONS = [
 export const PUBLIC_CORS_PATTERNS = [
   /^\/api\/episodes$/,
   /^\/api\/episodes\/\d+$/,
+  /^\/api\/episodes\/\d+\/related$/,
   /^\/api\/episodes\/\d+\/suggestions$/,
   /^\/api\/episodes\/\d+\/suggestions\/history$/,
   /^\/api\/guests$/,

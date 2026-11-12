@@ -1,4 +1,5 @@
 export function createPublicController({
+  searchService,
   episodes,
   suggestions,
   meta,
@@ -64,21 +65,6 @@ export function createPublicController({
     return { ok: false, error: { field: fieldName, issue: 'must_be_boolean' } };
   }
 
-  function parseDurationToSeconds(value) {
-    const raw = normalizeText(value);
-    if (!raw) return 0;
-
-    if (/^\d+$/.test(raw)) return Number.parseInt(raw, 10);
-
-    const parts = raw.split(':').map((part) => Number.parseInt(part, 10));
-    if (parts.some((part) => Number.isNaN(part) || part < 0)) return 0;
-
-    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
-    if (parts.length === 2) return parts[0] * 60 + parts[1];
-    if (parts.length === 1) return parts[0];
-    return 0;
-  }
-
   function getTopicFilters(req, details) {
     const topics = [];
 
@@ -104,26 +90,9 @@ export function createPublicController({
     return out;
   }
 
-  function scoreRelevance(ep, query) {
-    const q = normalizeText(query).toLowerCase();
-    if (!q) return 0;
-
-    const title = normalizeText(ep.title).toLowerCase();
-    const description = normalizeText(ep.description).toLowerCase();
-    const summary = normalizeText(ep.summary).toLowerCase();
-
-    let score = 0;
-    if (title === q) score += 120;
-    if (title.startsWith(q)) score += 80;
-    if (title.includes(q)) score += 50;
-    if (description.includes(q)) score += 20;
-    if (summary.includes(q)) score += 10;
-
-    return score;
-  }
 
   return {
-    listEpisodes(req, res) {
+    async listEpisodes(req, res, next) {
       const details = [];
 
       const limitResult = parseIntegerField(req.query.limit, 'limit', { min: 1, max: 100 });
@@ -155,7 +124,7 @@ export function createPublicController({
 
       const topics = getTopicFilters(req, details);
 
-      const sort = sortResult.provided ? normalizeText(sortResult.value).toLowerCase() : 'pub_date';
+      const sort = sortResult.provided ? normalizeText(sortResult.value).toLowerCase() : (qResult.value ? 'relevance' : 'pub_date');
       if (!['pub_date', 'relevance', 'duration'].includes(sort)) {
         details.push({ field: 'sort', issue: 'invalid_choice', allowed: ['pub_date', 'relevance', 'duration'] });
       }
@@ -168,78 +137,18 @@ export function createPublicController({
       const guest = guestResult.value;
       const format = formatResult.value;
 
-      let where = '1=1';
-      const params = [];
-
-      if (q) {
-        where += ' AND (title LIKE ? OR description LIKE ? OR format_name LIKE ? OR film_title LIKE ? OR manual_film_title LIKE ?)';
-        const t = `%${q}%`;
-        params.push(t, t, t, t, t);
-      }
-      if (guest) {
-        where += ' AND (guests_json LIKE ? OR manual_guests_json LIKE ?)';
-        params.push(`%${guest}%`, `%${guest}%`);
-      }
-      if (format) {
-        where += ' AND format_name = ?';
-        params.push(format);
-      }
-      for (const topic of topics) {
-        where += ' AND (topics_json LIKE ? OR manual_topics_json LIKE ?)';
-        params.push(`%${topic}%`, `%${topic}%`);
-      }
-
-      if (hasGuestResult.provided) {
-        if (hasGuestResult.value) {
-          where += " AND ((guests_json IS NOT NULL AND TRIM(guests_json) NOT IN ('', '[]')) OR (manual_guests_json IS NOT NULL AND TRIM(manual_guests_json) NOT IN ('', '[]')))";
-        } else {
-          where += " AND ((guests_json IS NULL OR TRIM(guests_json) IN ('', '[]')) AND (manual_guests_json IS NULL OR TRIM(manual_guests_json) IN ('', '[]')))";
-        }
-      }
-
-      if (hasChaptersResult.provided) {
-        if (hasChaptersResult.value) {
-          where += " AND (chapters_json IS NOT NULL AND TRIM(chapters_json) NOT IN ('', '[]'))";
-        } else {
-          where += " AND (chapters_json IS NULL OR TRIM(chapters_json) IN ('', '[]'))";
-        }
-      }
-
-      if (hasFilmTitleResult.provided) {
-        if (hasFilmTitleResult.value) {
-          where += " AND ((film_title IS NOT NULL AND TRIM(film_title) != '') OR (manual_film_title IS NOT NULL AND TRIM(manual_film_title) != ''))";
-        } else {
-          where += " AND ((film_title IS NULL OR TRIM(film_title) = '') AND (manual_film_title IS NULL OR TRIM(manual_film_title) = ''))";
-        }
-      }
-
-      const total = episodes.count(where, params);
-
-      let rows;
-      if (sort === 'pub_date') {
-        rows = episodes.list(where, params, lim, off, 'pub_ts DESC, id DESC');
-      } else {
-        const all = episodes.list(where, params, total || 1, 0, 'pub_ts DESC, id DESC');
-
-        if (sort === 'relevance' && q) {
-          all.sort((a, b) => {
-            const byScore = scoreRelevance(b, q) - scoreRelevance(a, q);
-            if (byScore !== 0) return byScore;
-            return (Number.parseInt(b.pub_ts, 10) || 0) - (Number.parseInt(a.pub_ts, 10) || 0);
-          });
-        } else if (sort === 'duration') {
-          all.sort((a, b) => {
-            const byDuration = parseDurationToSeconds(b.duration) - parseDurationToSeconds(a.duration);
-            if (byDuration !== 0) return byDuration;
-            return (Number.parseInt(b.pub_ts, 10) || 0) - (Number.parseInt(a.pub_ts, 10) || 0);
-          });
-        }
-
-        rows = all.slice(off, off + lim);
-      }
+      let result;
+      try {
+        result = await searchService.list({ q, guest, format, topics, sort, limit: lim, offset: off,
+          hasGuest: hasGuestResult.provided ? hasGuestResult.value : undefined,
+          hasChapters: hasChaptersResult.provided ? hasChaptersResult.value : undefined,
+          hasFilmTitle: hasFilmTitleResult.provided ? hasFilmTitleResult.value : undefined,
+        });
+      } catch (error) { return next(error); }
 
       return res.json({
-        total,
+        total: result.total,
+        search_mode: result.mode,
         limit: lim,
         offset: off,
         sort,
@@ -252,8 +161,15 @@ export function createPublicController({
           has_chapters: hasChaptersResult.provided ? hasChaptersResult.value : null,
           has_film_title: hasFilmTitleResult.provided ? hasFilmTitleResult.value : null,
         },
-        episodes: rows.map(serializeEpisode),
+        episodes: result.episodes,
       });
+    },
+
+    getRelatedEpisodes(req, res) {
+      const id = String(req.params.id);
+      if (!/^[1-9]\d*$/.test(id)) return res.status(400).json({ error: 'Ungültige Episode.' });
+      const result = searchService.related(Number(id));
+      return result ? res.json(result) : res.status(404).json({ error: 'Nicht gefunden' });
     },
 
     getEpisodeById(req, res) {
@@ -457,6 +373,7 @@ export function createPublicController({
     getStatus(_req, res) {
       const quality = episodes.qualityCounts();
       return res.json({
+        search: searchService.status(),
         episodes: episodes.totalCount(),
         parsed: episodes.parsedCount(parseVersion),
         last_sync: meta.get('last_sync'),

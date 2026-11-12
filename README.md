@@ -267,6 +267,8 @@ APP_BASE_URL=https://kack.li
 
 ## Lokale Entwicklung
 
+Für die neue Wort-/semantische Suche, ähnliche Folgen und die geschützte Cluster-Prüfung siehe **[Suche und Zuteilungen](docs/search-and-clusters.md)**. Eine lokale Konfigurationsvorlage liegt in `.env.example`. Ohne Embedding-Dienst funktioniert die Wortsuche weiterhin; eine separate Vektordatenbank ist nicht erforderlich.
+
 ```bash
 npm ci
 npm run dev

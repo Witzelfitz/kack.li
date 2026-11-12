@@ -4,6 +4,10 @@ export function createAdminRoutes({ controller, requireAdmin }) {
   const router = express.Router();
 
   router.use(requireAdmin);
+  router.post('/search/reindex', controller.reindexSearch);
+  router.get('/clusters', controller.listClusters);
+  router.get('/clusters/history', controller.clusterHistory);
+  router.post('/clusters/:id/review', controller.reviewCluster);
 
   router.get('/logs', controller.listLogs);
   router.get('/suggestions', controller.listSuggestions);

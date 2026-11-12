@@ -2,7 +2,7 @@ export const TOPIC_MODEL = [
   {
     id: 'community-feedback',
     name: 'Community-Feedback',
-    aliases: ['Hörerfeedback', 'Hörermails', 'Hörerfragen', 'Community'],
+    aliases: ['Hörerfeedback', 'Hörermails', 'Hörerfragen'],
   },
   {
     id: 'premium-kanal',
@@ -42,7 +42,7 @@ export const TOPIC_MODEL = [
   {
     id: 'science-fiction',
     name: 'Science Fiction',
-    aliases: ['Science Fiction', 'Sci-Fi'],
+    aliases: ['Science Fiction', 'Science-Fiction', 'Sci-Fi', 'SciFi'],
   },
   {
     id: 'historische-hintergruende',
@@ -52,11 +52,18 @@ export const TOPIC_MODEL = [
   {
     id: 'comicverfilmung',
     name: 'Comicverfilmung',
-    aliases: ['Comicverfilmung', 'Comics'],
+    aliases: ['Comicverfilmung', 'Comicverfilmungen'],
   },
   {
     id: 'star-wars',
     name: 'Star Wars',
-    aliases: ['Star Wars', 'Darth Vader'],
+    aliases: ['Star Wars'],
   },
+  { id: 'topic-zeitreisen', name: 'Zeitreisen', aliases: ['Zeitreise', 'Zeitreisen'] },
+];
+
+// Related concepts are deliberately not aliases (related does not mean identical).
+export const TOPIC_RELATIONS = [
+  { from: 'topic-comics', to: 'comicverfilmung', type: 'related' },
+  { from: 'topic-darth-vader', to: 'star-wars', type: 'part_of' },
 ];
