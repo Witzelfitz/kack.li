@@ -40,7 +40,9 @@ Entscheidungen liegen getrennt in `data/entity-decisions.json` (optional `ENTITY
 
 Die Web-App bleibt auf Hostpoint. Für semantische Live-Freitextsuche muss **auch die Anfrage** mit demselben Modell eingebettet werden. Ein nur nachts erzeugter Dokumentindex reicht dafür nicht. Entweder einen überprüften lokalen CPU-Encoder auf dem Webhost oder einen zuverlässig erreichbaren privaten Dienst auf vorhandener Infrastruktur verwenden. Ein dauerhaft offener Mac oder öffentliches ungeschütztes Ollama sind keine Produktionsarchitektur. Keine kostenpflichtige Plattform erforderlich.
 
-Der Produktions-Encoder und die nächtliche Index-Aktualisierung sind noch nicht ausgerollt. `EMBEDDING_BASE_URL` ist eine serverseitige Konfiguration und niemals vom Besucher wählbar. Ein entfernter Dienst braucht Transport-/Zugriffsschutz vor Ollama; keine Tokens oder Produktionszugänge ins Repo schreiben.
+Produktions-Setup: Textkern von EmbeddingGemma 2 auf vorhandener VPS-Infrastruktur, `kack-embeddinggemma-2-text`, geschützter HTTPS-Encoder, eigener CPU-Container (896 MiB ohne Swap, ein Kern). Bau und Konfiguration stehen in [deploy/embeddings](../deploy/embeddings/README.md). Die Web-App bleibt auf Hostpoint; `SEARCH_AUTO_INDEX=1` integriert Updates in den bestehenden Nachtlauf. Ein erfolgreicher Rollout muss separat gegen den Live-Commit und echte Hybrid-Suchantworten verifiziert werden.
+
+`EMBEDDING_BASE_URL` ist eine serverseitige Konfiguration und niemals vom Besucher wählbar. Der entfernte Dienst verwendet HTTPS und `EMBEDDING_AUTHORIZATION`; keine Tokens oder Produktionszugänge ins Repo schreiben. Der einmalige Erstindex kann auf dem Mac mit **exakt demselben Modell-Digest und denselben GGUF-Gewichten** berechnet werden. Der ursprüngliche MLX-Index ist damit nicht kompatibel und wird nicht übernommen. Laufende Live-Anfragen und inkrementelle Updates bleiben unabhängig vom Mac.
 
 ## Verifikation (12.11.2026)
 
