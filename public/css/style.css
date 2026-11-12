@@ -190,6 +190,7 @@ main {
 
 .search-wrap {
   flex: 1;
+  min-width: 0;
   position: relative;
   display: flex;
   align-items: center;
@@ -210,6 +211,7 @@ main {
 
 #searchInput {
   flex: 1;
+  min-width: 0;
   background: transparent;
   border: none;
   outline: none;
@@ -954,6 +956,10 @@ main {
 
 /* ── Responsive ──────────────────────────────────────────────────────────────── */
 @media (max-width: 600px) {
+  .toolbar { flex-wrap: wrap; gap: 12px; }
+  .search-wrap { flex-basis: 100%; }
+  .btn-filter-active { max-width: calc(100% - 96px); overflow: hidden; text-overflow: ellipsis; }
+  .count-label { margin-left: auto; }
   .logo-kack { font-size: 22px; }
   .logo-sach { font-size: 13px; }
   .logo-tag  { display: none; }
